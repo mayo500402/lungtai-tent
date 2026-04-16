@@ -947,6 +947,19 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 
 </style>
+<style>
+/* 下拉重新整理 */
+.pull-refresh {
+  text-align: center;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--worker);
+  font-weight: 500;
+  display: none;
+}
+.pull-refresh.visible { display: block; }
+.pull-refresh.loading { color: var(--ink-faint); }
+</style>
 </head>
 <body>
 
@@ -982,6 +995,7 @@ body {
 
     <!-- ==================== SETUP TAB ==================== -->
     <section class="page active" id="page-setup">
+      <div class="pull-refresh" id="pullRefresh">↓ 下拉重新整理</div>
       <h1 class="page-title">今日施工</h1>
       <p class="page-sub">Setup today · 需要去搭的工地</p>
 
@@ -1057,6 +1071,26 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========== DATA (從雲端讀取) ==========
 const today = new Date();
 let orders = [];
+let itemLibrary = [];
+
+// 載入品項庫（給新增品項用）
+async function loadItemLibrary() {
+  try {
+    const { data, error } = await db
+      .from('items')
+      .select('name, price, category')
+      .eq('is_active', true)
+      .not('category', 'eq', 'peer')
+      .order('category')
+      .order('name');
+    if (!error && data) {
+      itemLibrary = data;
+      console.log(`📦 載入 ${itemLibrary.length} 個品項供選擇`);
+    }
+  } catch (err) {
+    console.error('載入品項庫失敗:', err);
+  }
+}
 
 const statusMap = {
   'pending-setup': { label: '等待搭設', cls: 'status-pending-setup' },
@@ -1719,6 +1753,14 @@ async function adjustQty(orderId, itemIdx, delta) {
       }
 
       await recalcQuoteTotal(o.quote_id);
+
+      // 寫入變更紀錄讓老闆看到
+      const changeNote = `[現場調整] ${item.name}: ${oldQty} → ${newQty}`;
+      await db.from('quotes').update({
+        worker_notes: changeNote,
+        updated_at: new Date().toISOString()
+      }).eq('id', o.quote_id);
+
       console.log(`✅ 品項調整：${item.name} ${oldQty} → ${newQty}`);
     } catch (err) {
       console.error('品項調整失敗:', err);
@@ -1751,6 +1793,14 @@ async function removeItem(orderId, itemIdx) {
       }
 
       await recalcQuoteTotal(o.quote_id);
+
+      // 寫入變更紀錄
+      const changeNote = `[現場調整] 移除 ${item.name} ×${item.qty}`;
+      await db.from('quotes').update({
+        worker_notes: changeNote,
+        updated_at: new Date().toISOString()
+      }).eq('id', o.quote_id);
+
       console.log(`✅ 已移除品項：${item.name}`);
     } catch (err) {
       console.error('刪除品項失敗:', err);
@@ -1760,43 +1810,121 @@ async function removeItem(orderId, itemIdx) {
   showDetail(orderId);
 }
 
-// 客戶臨時新增品項
+// 客戶臨時新增品項（下拉選單）
 async function addItemOnSite(orderId) {
   const o = orders.find(x => String(x.id) === String(orderId));
   if (!o) return;
 
-  const name = prompt('客戶要新增什麼品項？\n\n例如：12尺帳篷、塑膠椅子、電燈');
-  if (!name || !name.trim()) return;
+  // 建立彈出視窗
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,22,20,0.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
 
-  const qtyStr = prompt(`「${name.trim()}」要幾個/張/盞？`, '1');
-  if (!qtyStr) return;
-  const qty = parseInt(qtyStr) || 1;
+  const categoryLabels = { tent: '帳篷', furniture: '桌椅', equipment: '設備', other: '其他', special: '特殊' };
 
-  o.items.push({ name: name.trim(), qty: qty });
+  // 按分類分組
+  const grouped = {};
+  itemLibrary.forEach(item => {
+    const cat = item.category || 'other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(item);
+  });
 
-  if (o.quote_id) {
-    try {
-      await db.from('quote_items').insert([{
-        quote_id: o.quote_id,
-        item_name: name.trim(),
-        quantity: qty,
-        unit_price: 0,
-        sort_order: o.items.length - 1
-      }]);
+  const optionsHTML = Object.keys(grouped).map(cat => {
+    const label = categoryLabels[cat] || cat;
+    const opts = grouped[cat].map(i =>
+      `<option value="${i.name}" data-price="${i.price}">${i.name}（$${i.price}）</option>`
+    ).join('');
+    return `<optgroup label="── ${label} ──">${opts}</optgroup>`;
+  }).join('');
 
-      await db.from('quotes').update({
-        worker_notes: `[現場調整] 新增 ${name.trim()} ×${qty}`,
-        updated_at: new Date().toISOString()
-      }).eq('id', o.quote_id);
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card);border-radius:16px;max-width:380px;width:100%;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+      <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:500;margin-bottom:14px;">客戶臨時新增品項</div>
 
-      console.log(`✅ 新增品項：${name.trim()} ×${qty}`);
-    } catch (err) {
-      console.error('新增品項失敗:', err);
+      <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px;">選擇品項</label>
+      <select id="addItemSelect" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;background:var(--bg-card);margin-bottom:12px;">
+        <option value="">-- 請選擇 --</option>
+        ${optionsHTML}
+      </select>
+
+      <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px;">或手動輸入品項名稱</label>
+      <input type="text" id="addItemCustom" placeholder="例如：LED 燈條" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:12px;box-sizing:border-box;">
+
+      <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px;">數量</label>
+      <input type="number" id="addItemQty" value="1" min="1" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:16px;box-sizing:border-box;">
+
+      <div style="display:flex;gap:8px;">
+        <button id="addItemCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg-card);font-family:inherit;font-size:14px;cursor:pointer;">取消</button>
+        <button id="addItemConfirm" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--worker);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">✓ 確認新增</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // 下拉選單選了就清空手動輸入
+  document.getElementById('addItemSelect').addEventListener('change', () => {
+    document.getElementById('addItemCustom').value = '';
+  });
+  // 手動輸入了就清空下拉
+  document.getElementById('addItemCustom').addEventListener('input', () => {
+    document.getElementById('addItemSelect').value = '';
+  });
+
+  // 取消
+  document.getElementById('addItemCancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  // 確認
+  document.getElementById('addItemConfirm').addEventListener('click', async () => {
+    const select = document.getElementById('addItemSelect');
+    const custom = document.getElementById('addItemCustom').value.trim();
+    const qty = parseInt(document.getElementById('addItemQty').value) || 1;
+
+    let name = '';
+    let price = 0;
+
+    if (select.value) {
+      name = select.value;
+      const opt = select.selectedOptions[0];
+      price = parseInt(opt.dataset.price) || 0;
+    } else if (custom) {
+      name = custom;
+      // 嘗試從品項庫找價格
+      const found = itemLibrary.find(i => i.name === custom);
+      if (found) price = found.price;
+    } else {
+      alert('請選擇或輸入品項名稱');
+      return;
     }
-  }
 
-  alert(`✓ 已新增「${name.trim()} ×${qty}」\n\n老闆那邊會收到更新。`);
-  showDetail(orderId);
+    o.items.push({ name, qty });
+
+    if (o.quote_id) {
+      try {
+        await db.from('quote_items').insert([{
+          quote_id: o.quote_id,
+          item_name: name,
+          quantity: qty,
+          unit_price: price,
+          sort_order: o.items.length - 1
+        }]);
+
+        await db.from('quotes').update({
+          worker_notes: `[現場調整] 新增 ${name} ×${qty}`,
+          updated_at: new Date().toISOString()
+        }).eq('id', o.quote_id);
+
+        console.log(`✅ 新增品項：${name} ×${qty}`);
+      } catch (err) {
+        console.error('新增品項失敗:', err);
+      }
+    }
+
+    overlay.remove();
+    alert(`✓ 已新增「${name} ×${qty}」\n\n老闆那邊會收到更新。`);
+    showDetail(orderId);
+  });
 }
 
 // 重算報價單總金額
@@ -1958,6 +2086,7 @@ function renderAll() {
 // 雲端初始化
 async function init() {
   console.log('🚀 員工版啟動中...');
+  await loadItemLibrary();
   const ok = await loadOrdersFromCloud();
   if (ok) {
     renderAll();
@@ -1969,6 +2098,47 @@ async function init() {
 }
 
 init();
+
+// ========== 下拉重新整理 ==========
+let touchStartY = 0;
+let isPulling = false;
+
+document.addEventListener('touchstart', (e) => {
+  if (window.scrollY === 0) {
+    touchStartY = e.touches[0].clientY;
+    isPulling = true;
+  }
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!isPulling) return;
+  const diff = e.touches[0].clientY - touchStartY;
+  const pullEl = document.getElementById('pullRefresh');
+  if (diff > 30 && window.scrollY === 0) {
+    pullEl.classList.add('visible');
+    pullEl.textContent = diff > 80 ? '↑ 放開重新整理' : '↓ 繼續下拉';
+  } else {
+    pullEl.classList.remove('visible');
+  }
+}, { passive: true });
+
+document.addEventListener('touchend', async (e) => {
+  if (!isPulling) return;
+  isPulling = false;
+  const pullEl = document.getElementById('pullRefresh');
+  if (pullEl.classList.contains('visible') && pullEl.textContent.includes('放開')) {
+    pullEl.textContent = '🔄 重新載入中...';
+    pullEl.classList.add('loading');
+    await loadOrdersFromCloud();
+    renderAll();
+    pullEl.textContent = '✓ 已更新';
+    setTimeout(() => {
+      pullEl.classList.remove('visible', 'loading');
+    }, 800);
+  } else {
+    pullEl.classList.remove('visible');
+  }
+});
 
 // click outside modal to close
 document.getElementById('setupCompleteModal').addEventListener('click', (e) => {

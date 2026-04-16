@@ -207,6 +207,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
 .page-title {
   font-family: 'Fraunces', serif;
   font-size: 28px;
@@ -2835,8 +2840,7 @@ function renderDetail() {
     bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 嘉豐施工中</button>`;
   } else if (q.status === 'pending') {
     bottomBtn = `
-      <button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 客戶已確認（成交）</button>
-      <button class="btn" style="background: var(--blue); color: #fff;" onclick="acceptAndDispatch('${q.id}')">⚡ 直接成交 + 派工</button>
+      <button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 成交並派工給嘉豐</button>
     `;
   }
 
@@ -3139,26 +3143,18 @@ function confirmPay(id) {
   }
 }
 
-// 確認成交（待回覆 → 已成交）
-function acceptQuote(id) {
+// 確認成交 → 直接派工
+async function acceptQuote(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (confirm(`確認「${q.client}」已成交？`)) {
-    q.status = 'accepted';
-    renderDetail();
-    renderFilterTabs();
-    renderQuotesList();
-    alert('✓ 已成交！現在可以點「派工給嘉豐」。');
-  }
-}
-
-// 一鍵：成交 + 派工
-async function acceptAndDispatch(id) {
-  const q = savedQuotes.find(x => x.id === id);
-  if (!q) return;
-  if (!confirm(`確認「${q.client}」成交並直接派工給嘉豐？`)) return;
+  if (!confirm(`確認「${q.client}」已成交？\n\n成交後會直接派工給嘉豐。`)) return;
   q.status = 'accepted';
   await dispatchQuote(id);
+}
+
+// 一鍵：成交 + 派工（跟 acceptQuote 一樣了）
+async function acceptAndDispatch(id) {
+  await acceptQuote(id);
 }
 
 // 確保日期格式正確（YYYY-MM-DD）
@@ -3667,7 +3663,7 @@ function renderQuotesList() {
         <span class="quote-item-action-hint">◆ 待客戶回覆</span>
         <div style="display:flex;gap:6px;">
           <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳 LINE')">📨 LINE</button>
-          <button class="btn-mini btn-mini-accept" data-id="${q.id}" style="background:var(--green);color:#fff;">✓ 成交</button>
+          <button class="btn-mini btn-mini-accept" data-id="${q.id}" style="background:var(--green);color:#fff;">✓ 成交派工</button>
         </div>
       </div>`;
     }
@@ -3693,11 +3689,7 @@ function renderQuotesList() {
         }
       } else if (e.target.classList.contains('btn-mini-accept')) {
         e.stopPropagation();
-        if (confirm(`確認「${q.client}」已成交？\n\n成交後就可以派工給嘉豐。`)) {
-          q.status = 'accepted';
-          renderFilterTabs(); renderQuotesList();
-          alert(`✓ 已成交！\n\n現在可以點「派工」按鈕，把訂單指派給嘉豐。`);
-        }
+        acceptQuote(q.id);
       } else if (e.target.classList.contains('btn-mini-dispatch')) {
         e.stopPropagation();
         dispatchQuote(q.id);
@@ -4048,6 +4040,79 @@ function updateExamplePrices() {
 }
 
 init();
+
+// ========== 定時檢查員工端更新（每 30 秒）==========
+let lastCheckTime = new Date().toISOString();
+
+async function checkWorkerUpdates() {
+  try {
+    // 查詢最近有 worker_notes 更新的 quotes
+    const { data, error } = await db
+      .from('quotes')
+      .select('id, client_name, worker_notes, updated_at')
+      .gt('updated_at', lastCheckTime)
+      .not('worker_notes', 'is', null)
+      .neq('worker_notes', '')
+      .order('updated_at', { ascending: false })
+      .limit(5);
+
+    if (error || !data || data.length === 0) return;
+
+    // 更新檢查時間
+    lastCheckTime = new Date().toISOString();
+
+    // 每筆變更跳通知
+    data.forEach(q => {
+      if (q.worker_notes && q.worker_notes.startsWith('[現場調整]')) {
+        const msg = `📋 嘉豐回報：${q.client_name}\n\n${q.worker_notes}\n\n請到報價列表查看最新資訊`;
+
+        // 瀏覽器通知（如果有授權）
+        if (Notification.permission === 'granted') {
+          new Notification('隆泰帳篷 · 現場調整', {
+            body: `${q.client_name}\n${q.worker_notes}`,
+            icon: '🎪'
+          });
+        }
+
+        // App 內通知
+        showWorkerAlert(q.client_name, q.worker_notes);
+      }
+    });
+  } catch (err) {
+    // 靜默失敗，不影響使用
+  }
+}
+
+function showWorkerAlert(client, notes) {
+  // 建立通知條
+  const bar = document.createElement('div');
+  bar.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+    background: #2a4564; color: #fff; padding: 14px 18px;
+    font-size: 14px; line-height: 1.5;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: slideDown 0.3s ease-out;
+    cursor: pointer;
+  `;
+  bar.innerHTML = `
+    <div style="font-weight:600;margin-bottom:4px;">📋 嘉豐現場回報</div>
+    <div>${client}：${notes}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px;">點擊關閉</div>
+  `;
+  bar.addEventListener('click', () => bar.remove());
+  document.body.appendChild(bar);
+
+  // 8 秒後自動消失
+  setTimeout(() => { if (bar.parentNode) bar.remove(); }, 8000);
+}
+
+// 請求瀏覽器通知權限
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+// 每 30 秒檢查一次
+setInterval(checkWorkerUpdates, 30000);
 
 </script>
 </body>
