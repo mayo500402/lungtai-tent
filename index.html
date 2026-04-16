@@ -2911,14 +2911,82 @@ function confirmPay(id) {
   }
 }
 
-function dispatchQuote(id) {
+async function dispatchQuote(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (confirm(`派工給阿斗：${q.client}？`)) {
+  if (!confirm(`派工給阿斗：${q.client}？\n\n阿斗的 App 會立即收到這筆訂單。`)) return;
+
+  try {
+    showSyncing('派工中');
+
+    // 1. 先把報價單存到雲端 quotes 表（如果還沒存過）
+    let quoteId = q.cloud_id;
+
+    if (!quoteId) {
+      const { data: newQuote, error: qErr } = await db
+        .from('quotes')
+        .insert([{
+          quote_no: q.no,
+          client_name: q.client,
+          client_tax_id: q.tax || '',
+          client_contact: q.contact || '',
+          client_phone: q.phone || '',
+          setup_date: q.setupDate ? q.setupDate.replace(/\//g, '-') : null,
+          event_date_start: q.eventDate ? q.eventDate.replace(/\//g, '-').split(' ')[0] : null,
+          total_amount: q.amount,
+          payment_method: q.paymentMethod || '現金',
+          status: 'dispatched',
+          remark: q.remark || '',
+          created_by: 'boss',
+          dispatched_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (qErr) throw qErr;
+      quoteId = newQuote[0].id;
+      q.cloud_id = quoteId;
+
+      // 2. 存品項明細
+      if (q.items && q.items.length > 0) {
+        const itemRows = q.items.map((item, idx) => ({
+          quote_id: quoteId,
+          item_name: item.name,
+          quantity: item.qty,
+          unit_price: item.price,
+          sort_order: idx
+        }));
+        await db.from('quote_items').insert(itemRows);
+      }
+    } else {
+      // 已存過，只更新狀態
+      await db.from('quotes').update({
+        status: 'dispatched',
+        dispatched_at: new Date().toISOString()
+      }).eq('id', quoteId);
+    }
+
+    // 3. 建立派工紀錄
+    const { error: dErr } = await db
+      .from('dispatches')
+      .insert([{
+        quote_id: quoteId,
+        worker_username: 'worker',
+        status: 'pending',
+        dispatched_at: new Date().toISOString()
+      }]);
+
+    if (dErr) throw dErr;
+
     q.status = 'dispatched';
+    showSynced('已派工');
+    alert(`📤 已派工給阿斗！\n\n「${q.client}」訂單已同步到雲端\n阿斗重新打開 App 就會看到。`);
     renderDetail();
     renderFilterTabs();
     renderQuotesList();
+  } catch (err) {
+    console.error('派工失敗:', err);
+    showError('派工失敗');
+    alert('派工失敗：' + err.message);
   }
 }
 
@@ -3232,10 +3300,7 @@ function renderQuotesList() {
         }
       } else if (e.target.classList.contains('btn-mini-dispatch')) {
         e.stopPropagation();
-        if (confirm(`派工給阿斗：${q.client}？`)) {
-          q.status = 'dispatched';
-          renderFilterTabs(); renderQuotesList();
-        }
+        dispatchQuote(q.id);
       } else if (!e.target.classList.contains('btn-mini')) {
         showDetail(q.id);
       }

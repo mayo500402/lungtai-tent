@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -1048,122 +1049,14 @@ body {
 </div>
 
 <script>
-// ========== DATA ==========
-const today = new Date('2026-04-16');
+// ========== SUPABASE 雲端連線 ==========
+const SUPABASE_URL = 'https://htsmeyvqcpcwdtpszpve.supabase.co';
+const SUPABASE_KEY = 'sb_publishable__c2PdqONSUkS-pJTrDYJhg_PMoD4vQZ';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const orders = [
-  {
-    id: 'o1',
-    no: 'ORD-20260416-001',
-    client: '阿城餐廳婚宴',
-    contact: '陳老闆',
-    phone: '0922-333-444',
-    address: '台北市大安區忠孝東路四段 200 號',
-    items: [
-      { name: '10×20 帳篷', qty: 2 },
-      { name: '串燈裝飾', qty: 6 }
-    ],
-    remark: '1. 帳布限用白色款\n2. 場地卸貨請從後門進出\n3. 新郎新娘希望入口朝南',
-    setupDate: '2026/04/16',
-    eventDate: '2026/05/12',
-    teardownDate: null,
-    status: 'pending-setup',
-    photos: []
-  },
-  {
-    id: 'o2',
-    no: 'ORD-20260417-001',
-    client: '大興國小園遊會',
-    contact: '王主任',
-    phone: '04-2345-6789',
-    address: '台中市北區學士路 100 號',
-    items: [
-      { name: '6×6 攤位帳', qty: 10 },
-      { name: '長桌 180cm', qty: 20 },
-      { name: '折疊椅', qty: 100 }
-    ],
-    remark: '1. 操場東側一字排開\n2. 風大要加地釘\n3. 中央走道 3 米寬',
-    setupDate: '2026/04/17',
-    eventDate: '2026/04/18',
-    teardownDate: null,
-    status: 'pending-setup',
-    photos: []
-  },
-  {
-    id: 'o3',
-    no: 'ORD-20260412-003',
-    client: '永豐銀行尾牙',
-    contact: 'HR林小姐',
-    phone: '02-2345-6789',
-    address: '台北市信義區松仁路 100 號',
-    items: [
-      { name: '20×30 舞台帳', qty: 1 },
-      { name: '燈光音響', qty: 1 }
-    ],
-    remark: '1. 飯店宴會廳使用\n2. 舞台前留 2 米淨空\n3. 燈桁架由技術組安裝',
-    setupDate: '2026/04/14',
-    eventDate: '2026/04/15',
-    teardownDate: '2026/04/16',
-    status: 'pending-teardown',
-    photos: [
-      { id: 'p1', label: 'setup', note: '背板架設完成' },
-      { id: 'p2', label: 'final', note: '全部完工照 — 背板高 4 米，燈光調至暖黃' }
-    ]
-  },
-  {
-    id: 'o4',
-    no: 'ORD-20260410-001',
-    client: '清水巖媽祖遶境',
-    contact: '王總幹事',
-    phone: '0933-111-555',
-    address: '彰化縣鹿港鎮中山路 60 號',
-    items: [
-      { name: '3×3 攤位帳 (3天)', qty: 15 }
-    ],
-    remark: '1. 沿廟埕外牆排一圈\n2. 不可擋到消防通道',
-    setupDate: '2026/04/08',
-    eventDate: '2026/04/08-10',
-    teardownDate: '2026/04/10',
-    status: 'done',
-    photos: [
-      { id: 'p3', label: 'setup', note: '15 座攤位帳已搭好' },
-      { id: 'p4', label: 'final', note: '完工照 — 排一圈靠牆，走道淨寬 3 米' },
-      { id: 'p5', label: 'teardown', note: '已拆除完畢，場地清潔完成' }
-    ]
-  },
-  {
-    id: 'o5',
-    no: 'ORD-20260405-001',
-    client: '陽明山婚禮',
-    contact: '新娘 林小姐',
-    phone: '0912-666-777',
-    address: '陽明山莊',
-    items: [{ name: '10×20 帳篷', qty: 1 }],
-    remark: '1. 山上風大，地釘打深 30cm\n2. 主桿下加壓重沙包',
-    setupDate: '2026/04/05',
-    eventDate: '2026/04/06',
-    teardownDate: '2026/04/06',
-    status: 'done',
-    photos: [
-      { id: 'p6', label: 'final', note: '戶外婚禮搭設完成' }
-    ]
-  },
-  {
-    id: 'o6',
-    no: 'ORD-20260330-001',
-    client: '文創河濱市集',
-    contact: '活動組',
-    phone: '0935-222-111',
-    address: '台北市大稻埕河濱公園',
-    items: [{ name: '6×6 攤位帳', qty: 8 }],
-    remark: '1. 水泥地不能打釘\n2. 每帳 80kg 配重',
-    setupDate: '2026/03/30',
-    eventDate: '2026/03/31',
-    teardownDate: '2026/03/31',
-    status: 'done',
-    photos: []
-  }
-];
+// ========== DATA (從雲端讀取) ==========
+const today = new Date();
+let orders = [];
 
 const statusMap = {
   'pending-setup': { label: '等待搭設', cls: 'status-pending-setup' },
@@ -1171,6 +1064,159 @@ const statusMap = {
   'pending-teardown': { label: '待拆除', cls: 'status-pending-teardown' },
   'done': { label: '已完成', cls: 'status-done' }
 };
+
+// 從雲端載入派工資料
+async function loadOrdersFromCloud() {
+  try {
+    console.log('📡 載入派工訂單...');
+
+    // 讀取所有派給 worker 的 dispatches，join quotes 和 quote_items
+    const { data: dispatches, error: dErr } = await db
+      .from('dispatches')
+      .select('*, quotes(*)')
+      .eq('worker_username', 'worker')
+      .order('created_at', { ascending: false });
+
+    if (dErr) throw dErr;
+
+    if (!dispatches || dispatches.length === 0) {
+      console.log('📋 目前沒有派工訂單');
+      orders = [];
+      return true;
+    }
+
+    // 讀取每張報價單的品項
+    const quoteIds = dispatches.map(d => d.quote_id).filter(Boolean);
+    let itemsMap = {};
+
+    if (quoteIds.length > 0) {
+      const { data: allItems, error: iErr } = await db
+        .from('quote_items')
+        .select('*')
+        .in('quote_id', quoteIds);
+
+      if (!iErr && allItems) {
+        allItems.forEach(item => {
+          if (!itemsMap[item.quote_id]) itemsMap[item.quote_id] = [];
+          itemsMap[item.quote_id].push(item);
+        });
+      }
+    }
+
+    // 組成員工版 orders 格式
+    orders = dispatches.map(d => {
+      const q = d.quotes || {};
+      const qItems = itemsMap[d.quote_id] || [];
+
+      // 決定員工端的狀態
+      let workerStatus = 'pending-setup';
+      if (d.status === 'teardown-done' || d.status === 'done') {
+        workerStatus = 'done';
+      } else if (d.status === 'setup-done' || d.teardown_completed_at) {
+        workerStatus = 'done';
+      } else if (d.setup_completed_at) {
+        workerStatus = 'pending-teardown';
+      }
+
+      return {
+        id: d.id,
+        dispatch_id: d.id,
+        quote_id: d.quote_id,
+        no: q.quote_no || `ORD-${d.id}`,
+        client: q.client_name || '未知客戶',
+        contact: q.client_contact || '—',
+        phone: q.client_phone || '—',
+        address: q.setup_address || '—',
+        items: qItems.map(i => ({ name: i.item_name, qty: i.quantity })),
+        remark: q.remark || '',
+        setupDate: q.setup_date || '—',
+        eventDate: q.event_date_start || '—',
+        teardownDate: d.teardown_completed_at ? d.teardown_completed_at.slice(0,10) : null,
+        status: workerStatus,
+        worker_notes: d.worker_notes || '',
+        photos: []
+      };
+    });
+
+    console.log(`✅ 載入 ${orders.length} 筆派工訂單`);
+    return true;
+  } catch (err) {
+    console.error('❌ 載入派工失敗:', err);
+    return false;
+  }
+}
+
+// 搭設完成 — 更新雲端
+async function markSetupComplete(dispatchId, teardownDate, notes) {
+  try {
+    const { error } = await db
+      .from('dispatches')
+      .update({
+        setup_completed_at: new Date().toISOString(),
+        worker_notes: notes || '',
+        status: 'setup-done',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', dispatchId);
+
+    if (error) throw error;
+
+    // 也更新 quotes 的狀態
+    const order = orders.find(o => o.dispatch_id === dispatchId);
+    if (order && order.quote_id) {
+      await db
+        .from('quotes')
+        .update({
+          status: 'setup-done',
+          setup_completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order.quote_id);
+    }
+
+    console.log('✅ 搭設完成已同步到雲端');
+    return true;
+  } catch (err) {
+    console.error('❌ 更新搭設狀態失敗:', err);
+    alert('同步失敗，請檢查網路');
+    return false;
+  }
+}
+
+// 拆除完成 — 更新雲端
+async function markTeardownComplete(dispatchId) {
+  try {
+    const { error } = await db
+      .from('dispatches')
+      .update({
+        teardown_completed_at: new Date().toISOString(),
+        status: 'done',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', dispatchId);
+
+    if (error) throw error;
+
+    const order = orders.find(o => o.dispatch_id === dispatchId);
+    if (order && order.quote_id) {
+      await db
+        .from('quotes')
+        .update({
+          status: 'unpaid',
+          teardown_completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order.quote_id);
+    }
+
+    console.log('✅ 拆除完成已同步到雲端');
+    return true;
+  } catch (err) {
+    console.error('❌ 更新拆除狀態失敗:', err);
+    alert('同步失敗，請檢查網路');
+    return false;
+  }
+}
 
 // ========== TAB NAV ==========
 document.querySelectorAll('.tab').forEach(t => {
@@ -1576,15 +1622,27 @@ function closeSetupModal() {
   document.getElementById('setupCompleteModal').classList.remove('visible');
 }
 
-document.getElementById('confirmSetupBtn').addEventListener('click', () => {
+document.getElementById('confirmSetupBtn').addEventListener('click', async () => {
   const o = orders.find(x => x.id === pendingSetupOrderId);
   if (!o || !pickedTeardownDate) return;
-  o.status = 'pending-teardown';
-  o.teardownDate = pickedTeardownDate;
-  closeSetupModal();
-  alert(`✓ 搭設完成！\n\n拆除日期：${pickedTeardownDate}\n已加入「待拆除」清單，老闆也會同步看到。`);
-  renderAll();
-  showDetail(pendingSetupOrderId);
+
+  document.getElementById('confirmSetupBtn').disabled = true;
+  document.getElementById('confirmSetupBtn').textContent = '同步中...';
+
+  const notes = document.getElementById('setupNotes') ? document.getElementById('setupNotes').value : '';
+  const ok = await markSetupComplete(o.dispatch_id, pickedTeardownDate, notes);
+
+  if (ok) {
+    o.status = 'pending-teardown';
+    o.teardownDate = pickedTeardownDate;
+    closeSetupModal();
+    alert(`✓ 搭設完成！\n\n拆除日期：${pickedTeardownDate}\n已同步到雲端，老闆已收到通知。`);
+    renderAll();
+    showDetail(pendingSetupOrderId);
+  }
+
+  document.getElementById('confirmSetupBtn').disabled = false;
+  document.getElementById('confirmSetupBtn').textContent = '確認完成';
 });
 
 // ========== TEARDOWN DONE MODAL ==========
@@ -1602,19 +1660,29 @@ function closeTeardownModal() {
   document.getElementById('teardownDoneModal').classList.remove('visible');
 }
 
-document.getElementById('confirmTeardownBtn').addEventListener('click', () => {
+document.getElementById('confirmTeardownBtn').addEventListener('click', async () => {
   const o = orders.find(x => x.id === pendingTeardownId);
   if (!o) return;
-  o.status = 'done';
-  closeTeardownModal();
-  alert(`✓ 已拆除完成！\n\n${o.client} 訂單已歸檔，老闆那邊會自動更新進度。`);
-  renderAll();
-  // switch to history tab to show the completed item
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelector('[data-tab="history"]').classList.add('active');
-  document.getElementById('page-history').classList.add('active');
-  window.scrollTo({top: 0, behavior: 'smooth'});
+
+  document.getElementById('confirmTeardownBtn').disabled = true;
+  document.getElementById('confirmTeardownBtn').textContent = '同步中...';
+
+  const ok = await markTeardownComplete(o.dispatch_id);
+
+  if (ok) {
+    o.status = 'done';
+    closeTeardownModal();
+    alert(`✓ 已拆除完成！\n\n${o.client} 訂單已歸檔\n老闆那邊會自動更新為「未收款」。`);
+    renderAll();
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="history"]').classList.add('active');
+    document.getElementById('page-history').classList.add('active');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  document.getElementById('confirmTeardownBtn').disabled = false;
+  document.getElementById('confirmTeardownBtn').textContent = '確認完成';
 });
 
 // ========== INIT ==========
@@ -1631,7 +1699,20 @@ function renderAll() {
   renderHistory();
 }
 
-renderAll();
+// 雲端初始化
+async function init() {
+  console.log('🚀 員工版啟動中...');
+  const ok = await loadOrdersFromCloud();
+  if (ok) {
+    renderAll();
+    console.log('🎉 員工版載入完成！');
+  } else {
+    console.log('⚠️ 雲端連線失敗，顯示空白頁面');
+    renderAll();
+  }
+}
+
+init();
 
 // click outside modal to close
 document.getElementById('setupCompleteModal').addEventListener('click', (e) => {
