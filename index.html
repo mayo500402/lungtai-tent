@@ -3147,9 +3147,9 @@ function confirmPay(id) {
 async function acceptQuote(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (!confirm(`確認「${q.client}」已成交？\n\n成交後會直接派工給嘉豐。`)) return;
+  if (!confirm(`確認「${q.client}」成交並派工給嘉豐？`)) return;
   q.status = 'accepted';
-  await dispatchQuote(id);
+  await dispatchQuote(id, true);
 }
 
 // 一鍵：成交 + 派工（跟 acceptQuote 一樣了）
@@ -3184,10 +3184,10 @@ function fixDateFormat(dateStr) {
   return null;
 }
 
-async function dispatchQuote(id) {
+async function dispatchQuote(id, skipConfirm = false) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (!confirm(`派工給嘉豐：${q.client}？\n\n嘉豐的 App 會立即收到這筆訂單。`)) return;
+  if (!skipConfirm && !confirm(`派工給嘉豐：${q.client}？\n\n嘉豐的 App 會立即收到這筆訂單。`)) return;
 
   try {
     showSyncing('派工中');

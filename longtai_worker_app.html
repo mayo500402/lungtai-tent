@@ -1832,7 +1832,7 @@ async function addItemOnSite(orderId) {
   const optionsHTML = Object.keys(grouped).map(cat => {
     const label = categoryLabels[cat] || cat;
     const opts = grouped[cat].map(i =>
-      `<option value="${i.name}" data-price="${i.price}">${i.name}（$${i.price}）</option>`
+      `<option value="${i.name}" data-price="${i.price}">${i.name}</option>`
     ).join('');
     return `<optgroup label="── ${label} ──">${opts}</optgroup>`;
   }).join('');
