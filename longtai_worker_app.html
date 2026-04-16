@@ -1433,13 +1433,17 @@ function showDetail(id) {
   const photosHTML = o.photos.length > 0 ? `
     <div class="photo-grid">
       ${o.photos.map(p => `
-        <div class="photo-thumb ${p.label === 'final' ? 'is-final' : ''}">
-          <svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="1">
-            <path d="M10 70 L50 30 L90 70 Z"/>
-            <path d="M50 30 L50 70"/>
-            <path d="M10 70 L90 70"/>
-          </svg>
+        <div class="photo-thumb ${p.label === 'final' ? 'is-final' : ''}" ${p.url ? `onclick="window.open('${p.url}','_blank')"` : ''}>
+          ${p.url
+            ? `<img src="${p.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`
+            : `<svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="1">
+                <path d="M10 70 L50 30 L90 70 Z"/>
+                <path d="M50 30 L50 70"/>
+                <path d="M10 70 L90 70"/>
+              </svg>`
+          }
           ${p.label === 'teardown' ? '<div class="photo-thumb-badge">拆</div>' : ''}
+          ${p.label === 'final' ? '<div class="photo-thumb-badge" style="background:var(--green)">完工</div>' : ''}
         </div>
       `).join('')}
     </div>
@@ -1532,12 +1536,14 @@ function showDetail(id) {
       </div>
       <div class="photo-upload-area">
         <div class="photo-upload-row">
-          <button class="photo-upload-btn" onclick="simulatePhoto('${o.id}', 'setup')">
-            <span>📷</span> 過程照片
-          </button>
-          <button class="photo-upload-btn final" onclick="simulatePhoto('${o.id}', 'final')">
-            <span>✓</span> 搭設完成照
-          </button>
+          <label class="photo-upload-btn final" style="cursor:pointer;flex:1;">
+            <span>📷</span> 直接拍照
+            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="uploadPhoto(this, '${o.id}', 'final')">
+          </label>
+          <label class="photo-upload-btn final" style="cursor:pointer;flex:1;">
+            <span>🖼</span> 從相簿選
+            <input type="file" accept="image/*" style="display:none;" onchange="uploadPhoto(this, '${o.id}', 'final')">
+          </label>
         </div>
         ${photosHTML}
         <div class="photo-note-editor">
@@ -1552,17 +1558,116 @@ function showDetail(id) {
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
-function simulatePhoto(orderId, label) {
+// 真的拍照上傳到 Supabase Storage
+async function uploadPhoto(input, orderId, photoType) {
+  const file = input.files[0];
+  if (!file) return;
+
   const o = orders.find(x => String(x.id) === String(orderId));
   if (!o) return;
-  o.photos.push({
-    id: 'p' + Date.now(),
-    label: label,
-    note: ''
+
+  // 顯示上傳中
+  const typeLabel = photoType === 'final' ? '搭設完成照' : '過程照片';
+  const statusMsg = document.createElement('div');
+  statusMsg.style.cssText = 'text-align:center;padding:12px;color:var(--worker);font-size:13px;font-weight:500;';
+  statusMsg.textContent = `📤 上傳${typeLabel}中...`;
+  input.closest('.photo-upload-area').insertBefore(statusMsg, input.closest('.photo-upload-row').nextSibling);
+
+  try {
+    // 壓縮圖片（手機照片很大，壓到 1200px 寬度以內）
+    const compressed = await compressImage(file, 1200, 0.8);
+
+    // 產生檔名
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `orders/${o.quote_id || orderId}/${photoType}_${timestamp}.${ext}`;
+
+    // 上傳到 Supabase Storage
+    const { data, error } = await db.storage
+      .from('photos')
+      .upload(path, compressed, {
+        contentType: compressed.type || 'image/jpeg',
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    // 取得公開網址
+    const { data: urlData } = db.storage
+      .from('photos')
+      .getPublicUrl(path);
+
+    const publicUrl = urlData.publicUrl;
+
+    // 寫入 photos 資料表
+    const { error: dbErr } = await db
+      .from('photos')
+      .insert([{
+        quote_id: o.quote_id || null,
+        storage_path: path,
+        photo_type: photoType,
+        notes: '',
+        uploaded_by: 'worker'
+      }]);
+
+    if (dbErr) console.error('寫入 photos 表失敗:', dbErr);
+
+    // 更新本地資料
+    o.photos.push({
+      id: 'p' + timestamp,
+      label: photoType,
+      note: '',
+      url: publicUrl
+    });
+
+    statusMsg.textContent = `✓ ${typeLabel}已上傳！`;
+    statusMsg.style.color = 'var(--green)';
+    setTimeout(() => {
+      statusMsg.remove();
+      showDetail(orderId);
+    }, 1000);
+
+    console.log(`✅ 照片已上傳: ${path}`);
+  } catch (err) {
+    console.error('上傳失敗:', err);
+    statusMsg.textContent = `✗ 上傳失敗：${err.message}`;
+    statusMsg.style.color = 'var(--alert)';
+    setTimeout(() => statusMsg.remove(), 3000);
+  }
+
+  // 清空 input（讓同一個按鈕可以再次選擇）
+  input.value = '';
+}
+
+// 壓縮圖片（避免手機原圖太大佔滿免費空間）
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+
+        if (w > maxWidth) {
+          h = Math.round(h * maxWidth / w);
+          w = maxWidth;
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
   });
-  const msg = label === 'final' ? '✓ 搭設完成照已上傳\n\n已同步到老闆的相簿，自動綁定此訂單' : '📷 照片已上傳\n\n自動同步到老闆的相簿';
-  alert(msg);
-  showDetail(orderId);
 }
 
 // ========== SETUP COMPLETE MODAL ==========

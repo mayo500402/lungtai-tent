@@ -1786,11 +1786,11 @@ body {
             <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v3M8 22h8" stroke-linecap="round"/>
           </svg>
         </button>
-        <div class="voice-hint" id="voiceHint">點一下開始說話（語音功能做好前，先用下方文字輸入）</div>
+        <div class="voice-hint" id="voiceHint">點一下開始說話，再點一下結束</div>
         <div class="voice-hint-eg">「阿城婚宴5月10進場5月12活動，31尺帳篷兩座、塑膠椅50張、長桌10張、電燈6盞，訂金三成」</div>
 
         <div class="library-note" style="margin-top: 16px;">
-          <strong>🤖 AI 解析：</strong>系統會把你說的話送到 <strong>Google Gemini AI</strong>，自動對應你品項庫的價格並建立報價單。
+          <strong>🤖 AI 語音開單：</strong>按麥克風 → 說出報價內容 → 再按一次停止 → AI 自動解析成報價單。也可以用下方文字輸入。
         </div>
 
         <div style="margin-top: 16px; text-align: left;">
@@ -2388,16 +2388,39 @@ const savedQuotes = [
   { id: 'q5', no: 'Q20260408-002', client: '誠品園遊會', amount: 8600, status: 'pending', date: '04/08', paymentMethod: '轉帳', items: [{name:'歐式帳篷', qty:8, price:600},{name:'長桌', qty:16, price:200}], setupDate:'05/05', eventDate:'05/06', contact:'活動組', phone:'02-8787-1234', tax:'18765432', remark:'待客戶回覆' }
 ];
 
-const photos = [
-  { id: 1, title: '31尺白色帳篷', client: '阿城餐廳', year: '2025', date: '2025/05/12', notes: '雙併帳篷中央相連，入口朝南。' },
-  { id: 2, title: '16尺帳篷 ×10', client: '大興國小', year: '2025', date: '2025/05/16', notes: '操場東側一字排開。' },
-  { id: 3, title: '12尺帳篷 ×15', client: '清水巖媽祖廟', year: '2025', date: '2025/05/22', notes: '沿廟埕外牆排一圈。' },
-  { id: 4, title: '25尺帳篷', client: '永豐銀行', year: '2025', date: '2025/12/20', notes: '飯店宴會廳使用。' },
-  { id: 5, title: '31尺帳篷', client: '陽明山莊', year: '2025', date: '2025/04/08', notes: '山上風大，地釘深 30cm。' },
-  { id: 6, title: '16尺帳篷', client: '文創市集', year: '2025', date: '2025/09/15', notes: '河濱公園沿步道搭設。' },
-  { id: 7, title: '31尺白色帳篷', client: '阿城餐廳', year: '2024', date: '2024/06/18', notes: '上次阿城的婚宴，客人反應很好。' },
-  { id: 8, title: '16尺帳篷 ×8', client: '大興國小', year: '2024', date: '2024/05/20', notes: '跟 2025 年佈局一樣。' }
-];
+let photos = [];
+
+// 從雲端讀取照片
+async function loadPhotosFromCloud() {
+  try {
+    const { data, error } = await db
+      .from('photos')
+      .select('*, quotes(client_name, quote_no)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    photos = (data || []).map(p => {
+      const { data: urlData } = db.storage.from('photos').getPublicUrl(p.storage_path);
+      const date = p.created_at ? p.created_at.slice(0, 10) : '';
+      const year = date.slice(0, 4);
+      return {
+        id: p.id,
+        title: p.photo_type === 'final' ? '搭設完成照' : '施工過程',
+        client: p.quotes ? p.quotes.client_name : '未知客戶',
+        year: year,
+        date: date.replace(/-/g, '/'),
+        notes: p.notes || '',
+        url: urlData.publicUrl,
+        photo_type: p.photo_type
+      };
+    });
+
+    console.log(`📷 從雲端載入 ${photos.length} 張照片`);
+  } catch (err) {
+    console.error('載入照片失敗:', err);
+  }
+}
 
 const methodStats = [
   { name: '現金', amount: 112500, count: 4, pct: 60, color: '#4a6741' },
@@ -2442,8 +2465,103 @@ const processing = document.getElementById('processing');
 const quoteDoc = document.getElementById('quoteDoc');
 let isRecording = false;
 
+// ========== 語音辨識（Web Speech API）==========
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let speechSupported = false;
+
+if (SpeechRecognition) {
+  speechSupported = true;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-TW';          // 繁體中文
+  recognition.continuous = true;        // 持續聆聽
+  recognition.interimResults = true;    // 即時顯示辨識中的文字
+  recognition.maxAlternatives = 1;
+
+  let finalText = '';
+  let interimText = '';
+
+  recognition.onstart = () => {
+    isRecording = true;
+    finalText = '';
+    interimText = '';
+    micBtn.classList.add('recording');
+    voiceHint.textContent = '正在聆聽，請說話...';
+    transcriptText.textContent = '';
+    transcript.classList.add('visible');
+    quoteDoc.classList.remove('visible');
+    console.log('🎤 語音辨識開始');
+  };
+
+  recognition.onresult = (event) => {
+    interimText = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalText += t;
+      } else {
+        interimText += t;
+      }
+    }
+    // 即時顯示（最終文字 + 目前辨識中的文字）
+    transcriptText.innerHTML = finalText + (interimText ? `<span style="color:var(--ink-faint)">${interimText}</span>` : '');
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    voiceHint.textContent = '點一下開始說話';
+    console.log('🎤 語音辨識結束，最終文字:', finalText);
+
+    // 如果有辨識到文字，自動送去 AI 解析
+    const result = (finalText + interimText).trim();
+    if (result.length > 0) {
+      document.getElementById('textInput').value = result;
+      transcriptText.textContent = result;
+      runAIParse(result);
+    } else {
+      voiceHint.textContent = '沒聽到聲音，請再試一次';
+      transcript.classList.remove('visible');
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error('🎤 語音辨識錯誤:', event.error);
+    isRecording = false;
+    micBtn.classList.remove('recording');
+
+    if (event.error === 'not-allowed') {
+      voiceHint.textContent = '請允許麥克風權限（點網址列左邊的鎖頭圖示）';
+      alert('⚠ 需要麥克風權限\n\n請點瀏覽器網址列左邊的鎖頭/設定圖示\n→ 找到「麥克風」→ 改成「允許」\n→ 重新整理頁面後再試');
+    } else if (event.error === 'no-speech') {
+      voiceHint.textContent = '沒聽到聲音，請再試一次';
+    } else if (event.error === 'network') {
+      voiceHint.textContent = '網路連線問題，請檢查網路';
+    } else {
+      voiceHint.textContent = `辨識錯誤（${event.error}），請再試一次`;
+    }
+  };
+}
+
 micBtn.addEventListener('click', () => {
-  alert('🎤 語音辨識功能在模組 3 會做好\n\n目前請用下方文字輸入框輸入，點「🤖 AI 解析並產生報價單」按鈕');
+  if (!speechSupported) {
+    alert('你的瀏覽器不支援語音辨識\n\n請用 iPhone Safari 或電腦版 Chrome 開啟');
+    return;
+  }
+
+  if (isRecording) {
+    // 點第二次 = 停止錄音
+    recognition.stop();
+    voiceHint.textContent = '辨識完成，送去 AI 解析...';
+  } else {
+    // 點第一次 = 開始錄音
+    try {
+      recognition.start();
+    } catch (err) {
+      console.error('啟動語音辨識失敗:', err);
+      voiceHint.textContent = '啟動失敗，請重試';
+    }
+  }
 });
 
 document.getElementById('parseTextBtn').addEventListener('click', async () => {
@@ -3669,7 +3787,7 @@ function renderPhotos() {
   }
 
   if (filtered.length === 0) {
-    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--ink-faint);font-size:13px;">沒有符合的照片</div>';
+    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--ink-faint);font-size:13px;">目前沒有照片<br><br>員工搭設時拍照上傳，照片會自動出現在這裡</div>';
     return;
   }
 
@@ -3701,20 +3819,33 @@ function makePhotoSection(wrap, title, items) {
   items.forEach(p => {
     const card = document.createElement('div');
     card.className = 'photo-card';
-    const parts = p.date.split('/');
+    const parts = (p.date || '').split('/');
+    const dateLabel = parts.length >= 3 ? `${p.year} · ${parts[1]}/${parts[2]}` : p.date || '';
+
+    const thumbContent = p.url
+      ? `<img src="${p.url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />`
+      : `<svg viewBox="0 0 100 100" fill="none" stroke="#8b6f47" stroke-width="0.8">
+          <path d="M10 70 L50 30 L90 70 Z"/><path d="M50 30 L50 70"/><path d="M10 70 L90 70"/>
+        </svg>`;
+
     card.innerHTML = `
       <div class="photo-thumb">
-        <svg viewBox="0 0 100 100" fill="none" stroke="#8b6f47" stroke-width="0.8">
-          <path d="M10 70 L50 30 L90 70 Z"/><path d="M50 30 L50 70"/><path d="M10 70 L90 70"/>
-        </svg>
-        <div class="photo-badge">${p.year} · ${parts[1]}/${parts[2]}</div>
+        ${thumbContent}
+        <div class="photo-badge">${dateLabel}</div>
       </div>
       <div class="photo-info">
         <div class="photo-title">${highlightText(p.title, photoSearchTerm)}</div>
         <div class="photo-meta">${highlightText(p.client, photoSearchTerm)}</div>
       </div>
     `;
-    card.addEventListener('click', () => alert(`${p.title}\n${p.date} · ${p.client}\n\n${p.notes}`));
+
+    card.addEventListener('click', () => {
+      if (p.url) {
+        window.open(p.url, '_blank');
+      } else {
+        alert(`${p.title}\n${p.date} · ${p.client}\n\n${p.notes}`);
+      }
+    });
     grid.appendChild(card);
   });
   wrap.appendChild(grid);
@@ -3759,6 +3890,7 @@ async function init() {
   document.getElementById('loadingText').textContent = '準備畫面中...';
 
   updateExamplePrices();
+  await loadPhotosFromCloud();
 
   renderFilterTabs();
   renderQuotesList();
