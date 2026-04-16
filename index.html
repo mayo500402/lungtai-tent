@@ -2075,7 +2075,7 @@ const GEMINI_MODELS = [
 ];
 
 function getGeminiEndpoint(model) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 }
 
 // 用 AI 解析口語描述，轉成結構化報價單
@@ -2117,8 +2117,7 @@ ${transcript}`;
     const response = await fetch(getGeminiEndpoint(currentModel), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': GEMINI_API_KEY
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
