@@ -1916,7 +1916,7 @@ body {
         <div class="quote-actions">
           <button class="btn btn-secondary" onclick="editVoiceQuote()">✏ 編輯內容</button>
           <button class="btn btn-secondary">匯出 PDF</button>
-          <button class="btn btn-primary">存檔</button>
+          <button class="btn btn-primary" onclick="saveVoiceQuote()">存檔</button>
         </div>
       </div>
     </section>
@@ -2497,6 +2497,43 @@ document.getElementById('payTransferBtn').addEventListener('click', () => {
   document.getElementById('payTransferBtn').classList.add('active');
   document.getElementById('payCashBtn').classList.remove('active');
 });
+
+function saveVoiceQuote() {
+  if (!currentQuoteData) { alert('請先產生報價單'); return; }
+  const today = new Date();
+  const dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
+  const no = `Q${dateStr}-${String(Math.floor(Math.random()*900)+100)}`;
+  const id = 'voice-' + Date.now();
+  const amount = currentQuoteData.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+  const newQuote = {
+    id: id,
+    no: no,
+    client: currentQuoteData.client.name,
+    tax: currentQuoteData.client.tax || '—',
+    contact: currentQuoteData.client.contact || '—',
+    phone: currentQuoteData.client.phone || '—',
+    setupDate: currentQuoteData.setupDate,
+    eventDate: currentQuoteData.eventDate,
+    items: [...currentQuoteData.items],
+    amount: amount,
+    status: 'pending',
+    date: String(today.getMonth()+1).padStart(2,'0') + '/' + String(today.getDate()).padStart(2,'0'),
+    paymentMethod: currentPaymentMethod,
+    remark: currentQuoteData.remark || ''
+  };
+  savedQuotes.unshift(newQuote);
+  renderFilterTabs();
+  renderQuotesList();
+
+  // 跳到報價列表頁
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-page="quotes"]').classList.add('active');
+  document.getElementById('page-quotes').classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+
+  alert(`✓ 報價單已存檔！\n\n${newQuote.client} · NT$ ${amount.toLocaleString()}\n\n狀態：待回覆\n點「✓ 成交」→「派工」就能派給阿斗。`);
+}
 
 function editVoiceQuote() {
   if (!currentQuoteData) { alert('請先產生報價單'); return; }

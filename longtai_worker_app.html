@@ -1162,7 +1162,7 @@ async function markSetupComplete(dispatchId, teardownDate, notes) {
     if (error) throw error;
 
     // 也更新 quotes 的狀態
-    const order = orders.find(o => o.dispatch_id === dispatchId);
+    const order = orders.find(o => String(o.dispatch_id) === String(dispatchId));
     if (order && order.quote_id) {
       await db
         .from('quotes')
@@ -1197,7 +1197,7 @@ async function markTeardownComplete(dispatchId) {
 
     if (error) throw error;
 
-    const order = orders.find(o => o.dispatch_id === dispatchId);
+    const order = orders.find(o => String(o.dispatch_id) === String(dispatchId));
     if (order && order.quote_id) {
       await db
         .from('quotes')
@@ -1231,7 +1231,7 @@ document.querySelectorAll('.tab').forEach(t => {
 
 document.getElementById('backBtn').addEventListener('click', () => {
   // figure out which tab to return to based on order status
-  const o = orders.find(x => x.id === currentDetailId);
+  const o = orders.find(x => String(x.id) === String(currentDetailId));
   let tab = 'setup';
   if (o) {
     if (o.status === 'pending-teardown') tab = 'teardown';
@@ -1414,7 +1414,7 @@ function renderHistory() {
 let currentDetailId = null;
 
 function showDetail(id) {
-  const o = orders.find(x => x.id === id);
+  const o = orders.find(x => String(x.id) === String(id));
   if (!o) return;
   currentDetailId = id;
 
@@ -1553,7 +1553,7 @@ function showDetail(id) {
 }
 
 function simulatePhoto(orderId, label) {
-  const o = orders.find(x => x.id === orderId);
+  const o = orders.find(x => String(x.id) === String(orderId));
   if (!o) return;
   o.photos.push({
     id: 'p' + Date.now(),
@@ -1571,8 +1571,8 @@ let pickedTeardownDate = null;
 
 function openSetupModal(orderId) {
   pendingSetupOrderId = orderId;
-  const o = orders.find(x => x.id === orderId);
-  if (!o) return;
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o) { console.error('找不到訂單:', orderId); return; }
 
   // Generate quick date options: event date, event+1, event+2
   const eventDate = new Date(o.eventDate.replace(/\//g, '-'));
@@ -1623,7 +1623,7 @@ function closeSetupModal() {
 }
 
 document.getElementById('confirmSetupBtn').addEventListener('click', async () => {
-  const o = orders.find(x => x.id === pendingSetupOrderId);
+  const o = orders.find(x => String(x.id) === String(pendingSetupOrderId));
   if (!o || !pickedTeardownDate) return;
 
   document.getElementById('confirmSetupBtn').disabled = true;
@@ -1650,7 +1650,7 @@ let pendingTeardownId = null;
 
 function openTeardownModal(orderId) {
   pendingTeardownId = orderId;
-  const o = orders.find(x => x.id === orderId);
+  const o = orders.find(x => String(x.id) === String(orderId));
   if (!o) return;
   document.getElementById('teardownClientName').textContent = `${o.client} · 器材已撤場`;
   document.getElementById('teardownDoneModal').classList.add('visible');
@@ -1661,7 +1661,7 @@ function closeTeardownModal() {
 }
 
 document.getElementById('confirmTeardownBtn').addEventListener('click', async () => {
-  const o = orders.find(x => x.id === pendingTeardownId);
+  const o = orders.find(x => String(x.id) === String(pendingTeardownId));
   if (!o) return;
 
   document.getElementById('confirmTeardownBtn').disabled = true;
