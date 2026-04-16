@@ -3267,13 +3267,24 @@ async function shareAsPDF() {
     const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
     if (imgHeight <= pdfMaxHeight) {
+      // 一頁放得下
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+    } else if (imgHeight <= pdfMaxHeight * 1.3) {
+      // 稍微超出一頁 — 整張縮小到一頁（避免簽名欄被切）
+      const scale = pdfMaxHeight / imgHeight;
+      const scaledWidth = pdfWidth * scale;
+      const offsetX = (pdfWidth - scaledWidth) / 2;
+      pdf.addImage(imgData, 'PNG', offsetX, 0, scaledWidth, pdfMaxHeight);
     } else {
+      // 真的很長 — 分頁（留 10mm 邊距避免切到文字）
+      const pageUsable = pdfMaxHeight - 10;
       let y = 0;
+      let page = 0;
       while (y < imgHeight) {
-        if (y > 0) pdf.addPage();
+        if (page > 0) pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, -y, pdfWidth, imgHeight);
-        y += pdfMaxHeight;
+        y += pageUsable;
+        page++;
       }
     }
 
