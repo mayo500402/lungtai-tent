@@ -2619,6 +2619,11 @@ function renderDetail() {
     bottomBtn = `<button class="btn" style="background: var(--blue); color: #fff;" onclick="dispatchQuote('${q.id}')">📤 派工給阿斗</button>`;
   } else if (q.status === 'dispatched') {
     bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 阿斗施工中</button>`;
+  } else if (q.status === 'pending') {
+    bottomBtn = `
+      <button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 客戶已確認（成交）</button>
+      <button class="btn" style="background: var(--blue); color: #fff;" onclick="acceptAndDispatch('${q.id}')">⚡ 直接成交 + 派工</button>
+    `;
   }
 
   const ed = (text, field, placeholder = '—') => {
@@ -2908,6 +2913,28 @@ function confirmPay(id) {
     renderFilterTabs();
     renderQuotesList();
   }
+}
+
+// 確認成交（待回覆 → 已成交）
+function acceptQuote(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (confirm(`確認「${q.client}」已成交？`)) {
+    q.status = 'accepted';
+    renderDetail();
+    renderFilterTabs();
+    renderQuotesList();
+    alert('✓ 已成交！現在可以點「派工給阿斗」。');
+  }
+}
+
+// 一鍵：成交 + 派工
+async function acceptAndDispatch(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`確認「${q.client}」成交並直接派工給阿斗？`)) return;
+  q.status = 'accepted';
+  await dispatchQuote(id);
 }
 
 async function dispatchQuote(id) {
@@ -3274,7 +3301,10 @@ function renderQuotesList() {
     } else if (q.status === 'pending') {
       actionRow = `<div class="quote-item-action">
         <span class="quote-item-action-hint">◆ 待客戶回覆</span>
-        <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 再傳一次 LINE')">📨 重傳 LINE</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳 LINE')">📨 LINE</button>
+          <button class="btn-mini btn-mini-accept" data-id="${q.id}" style="background:var(--green);color:#fff;">✓ 成交</button>
+        </div>
       </div>`;
     }
 
@@ -3296,6 +3326,13 @@ function renderQuotesList() {
         if (confirm(`確認收到 ${q.client} NT$ ${q.amount.toLocaleString()}？`)) {
           q.status = 'paid';
           renderFilterTabs(); renderQuotesList();
+        }
+      } else if (e.target.classList.contains('btn-mini-accept')) {
+        e.stopPropagation();
+        if (confirm(`確認「${q.client}」已成交？\n\n成交後就可以派工給阿斗。`)) {
+          q.status = 'accepted';
+          renderFilterTabs(); renderQuotesList();
+          alert(`✓ 已成交！\n\n現在可以點「派工」按鈕，把訂單指派給阿斗。`);
         }
       } else if (e.target.classList.contains('btn-mini-dispatch')) {
         e.stopPropagation();
