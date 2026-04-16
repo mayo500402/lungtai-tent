@@ -960,7 +960,7 @@ body {
       </div>
       <div class="user-badge">
         <span class="user-dot"></span>
-        <span id="workerName">阿斗</span>
+        <span id="workerName">嘉豐</span>
       </div>
     </div>
     <div class="header-date" id="todayDate">Today · 2026/04/16 · 週四</div>
@@ -1423,12 +1423,31 @@ function showDetail(id) {
 
   const s = statusMap[o.status];
 
-  const itemsHTML = o.items.map(i => `
-    <div class="item-line">
-      <span class="item-line-name">${i.name}</span>
-      <span class="item-line-qty">×${i.qty}</span>
+  // 品項可調整（員工到現場後客戶改數量）
+  const canEdit = (o.status === 'pending-setup' || o.status === 'in-setup' || o.status === 'pending-teardown');
+
+  const itemsHTML = o.items.map((i, idx) => `
+    <div class="item-line" style="display:flex;align-items:center;gap:8px;">
+      <span class="item-line-name" style="flex:1;">${i.name}</span>
+      ${canEdit ? `
+        <button onclick="adjustQty('${o.id}', ${idx}, -1)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--bg-card);font-size:16px;cursor:pointer;">−</button>
+        <span class="item-line-qty" style="min-width:32px;text-align:center;font-weight:600;">×${i.qty}</span>
+        <button onclick="adjustQty('${o.id}', ${idx}, 1)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--bg-card);font-size:16px;cursor:pointer;">+</button>
+        <button onclick="removeItem('${o.id}', ${idx})" style="width:28px;height:28px;border-radius:50%;border:1px solid #fde2dc;background:#fff8f5;color:#a3391e;font-size:14px;cursor:pointer;">×</button>
+      ` : `
+        <span class="item-line-qty">×${i.qty}</span>
+      `}
     </div>
   `).join('');
+
+  // 加入「客戶臨時調整」的按鈕（只在尚未完成時顯示）
+  const adjustSection = canEdit ? `
+    <div style="margin-top:10px;padding-top:10px;border-top:0.5px dashed var(--line);">
+      <button onclick="addItemOnSite('${o.id}')" style="width:100%;padding:10px;background:var(--worker-light);border:1px dashed var(--worker);border-radius:8px;font-family:inherit;font-size:13px;color:var(--worker);cursor:pointer;">
+        + 客戶臨時新增品項
+      </button>
+    </div>
+  ` : '';
 
   const photosHTML = o.photos.length > 0 ? `
     <div class="photo-grid">
@@ -1520,8 +1539,9 @@ function showDetail(id) {
     </div>
 
     <div class="detail-section">
-      <div class="detail-section-title">ITEMS · 需要品項</div>
+      <div class="detail-section-title">ITEMS · 需要品項 ${canEdit ? '<span style="font-size:10px;color:var(--worker);font-weight:400;">（可調整數量）</span>' : ''}</div>
       <div class="item-list">${itemsHTML}</div>
+      ${adjustSection}
     </div>
 
     <div class="detail-section">
@@ -1560,6 +1580,145 @@ function showDetail(id) {
 
 // 真的拍照上傳到 Supabase Storage
 async function uploadPhoto(input, orderId, photoType) {
+
+// ========== 品項調整（客戶臨時增減）==========
+
+// 調整數量（+1 或 -1）
+async function adjustQty(orderId, itemIdx, delta) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o || !o.items[itemIdx]) return;
+
+  const item = o.items[itemIdx];
+  const oldQty = item.qty;
+  const newQty = Math.max(0, oldQty + delta);
+
+  if (newQty === 0) {
+    removeItem(orderId, itemIdx);
+    return;
+  }
+
+  item.qty = newQty;
+
+  // 更新雲端 quote_items
+  if (o.quote_id) {
+    try {
+      const { data: qItems } = await db
+        .from('quote_items')
+        .select('id')
+        .eq('quote_id', o.quote_id)
+        .order('sort_order');
+
+      if (qItems && qItems[itemIdx]) {
+        await db.from('quote_items')
+          .update({ quantity: newQty })
+          .eq('id', qItems[itemIdx].id);
+      }
+
+      // 重算總金額
+      await recalcQuoteTotal(o.quote_id);
+
+      console.log(`✅ 品項調整：${item.name} ${oldQty} → ${newQty}`);
+    } catch (err) {
+      console.error('品項調整失敗:', err);
+    }
+  }
+
+  showDetail(orderId);
+}
+
+// 刪除品項
+async function removeItem(orderId, itemIdx) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o || !o.items[itemIdx]) return;
+
+  const item = o.items[itemIdx];
+  if (!confirm(`確定移除「${item.name} ×${item.qty}」？\n\n老闆那邊會收到通知。`)) return;
+
+  o.items.splice(itemIdx, 1);
+
+  if (o.quote_id) {
+    try {
+      const { data: qItems } = await db
+        .from('quote_items')
+        .select('id')
+        .eq('quote_id', o.quote_id)
+        .order('sort_order');
+
+      if (qItems && qItems[itemIdx]) {
+        await db.from('quote_items').delete().eq('id', qItems[itemIdx].id);
+      }
+
+      await recalcQuoteTotal(o.quote_id);
+      console.log(`✅ 已移除品項：${item.name}`);
+    } catch (err) {
+      console.error('刪除品項失敗:', err);
+    }
+  }
+
+  showDetail(orderId);
+}
+
+// 客戶臨時新增品項
+async function addItemOnSite(orderId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o) return;
+
+  const name = prompt('客戶要新增什麼品項？\n\n例如：12尺帳篷、塑膠椅子、電燈');
+  if (!name || !name.trim()) return;
+
+  const qtyStr = prompt(`「${name.trim()}」要幾個/張/盞？`, '1');
+  if (!qtyStr) return;
+  const qty = parseInt(qtyStr) || 1;
+
+  o.items.push({ name: name.trim(), qty: qty });
+
+  if (o.quote_id) {
+    try {
+      await db.from('quote_items').insert([{
+        quote_id: o.quote_id,
+        item_name: name.trim(),
+        quantity: qty,
+        unit_price: 0,
+        sort_order: o.items.length - 1
+      }]);
+
+      // 在 quotes 表加筆記
+      await db.from('quotes').update({
+        worker_notes: `[現場調整] 新增 ${name.trim()} ×${qty}`,
+        updated_at: new Date().toISOString()
+      }).eq('id', o.quote_id);
+
+      console.log(`✅ 新增品項：${name.trim()} ×${qty}`);
+    } catch (err) {
+      console.error('新增品項失敗:', err);
+    }
+  }
+
+  alert(`✓ 已新增「${name.trim()} ×${qty}」\n\n老闆那邊會收到更新。`);
+  showDetail(orderId);
+}
+
+// 重算報價單總金額
+async function recalcQuoteTotal(quoteId) {
+  try {
+    const { data: items } = await db
+      .from('quote_items')
+      .select('quantity, unit_price')
+      .eq('quote_id', quoteId);
+
+    if (items) {
+      const total = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+      await db.from('quotes').update({
+        total_amount: total,
+        deposit_amount: Math.round(total * 0.3),
+        balance_amount: total - Math.round(total * 0.3),
+        updated_at: new Date().toISOString()
+      }).eq('id', quoteId);
+    }
+  } catch (err) {
+    console.error('重算總金額失敗:', err);
+  }
+}
   const file = input.files[0];
   if (!file) return;
 

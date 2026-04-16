@@ -2111,7 +2111,7 @@ ${itemCatalog}
 }
 
 【老闆說的話】：
-${transcript}`;
+${transcript}${getCorrectionHints()}`;
 
   try {
     const response = await fetch(getGeminiEndpoint(currentModel), {
@@ -2260,7 +2260,66 @@ async function loadItemsFromCloud() {
   }
 }
 
-// 更新雲端品項價格
+// ========== 修正對照表（AI 學習）==========
+let corrections = [];
+
+// 從雲端讀取修正對照表
+async function loadCorrections() {
+  try {
+    const { data, error } = await db
+      .from('corrections')
+      .select('*')
+      .order('use_count', { ascending: false });
+    if (error) throw error;
+    corrections = data || [];
+    console.log(`📝 載入 ${corrections.length} 筆修正對照`);
+  } catch (err) {
+    console.error('載入修正對照失敗:', err);
+    corrections = [];
+  }
+}
+
+// 儲存一筆修正（語音辨識結果 → 你改的正確名稱）
+async function saveCorrection(original, corrected, fieldType) {
+  if (!original || !corrected || original === corrected) return;
+  original = original.trim();
+  corrected = corrected.trim();
+  if (original === corrected) return;
+
+  try {
+    // 先找有沒有已存在的
+    const existing = corrections.find(c => c.original === original && c.field_type === fieldType);
+    if (existing) {
+      // 更新
+      await db.from('corrections').update({
+        corrected: corrected,
+        use_count: (existing.use_count || 0) + 1,
+        updated_at: new Date().toISOString()
+      }).eq('id', existing.id);
+      existing.corrected = corrected;
+      existing.use_count = (existing.use_count || 0) + 1;
+    } else {
+      // 新增
+      const { data, error } = await db.from('corrections').insert([{
+        original: original,
+        corrected: corrected,
+        field_type: fieldType,
+        use_count: 1
+      }]).select();
+      if (!error && data) corrections.push(data[0]);
+    }
+    console.log(`📝 已記錄修正：「${original}」→「${corrected}」`);
+  } catch (err) {
+    console.error('儲存修正失敗:', err);
+  }
+}
+
+// 產生修正對照表給 AI 參考
+function getCorrectionHints() {
+  if (corrections.length === 0) return '';
+  const hints = corrections.map(c => `「${c.original}」→「${c.corrected}」`).join('\n');
+  return `\n\n【老闆的用語修正對照表】（口音或口語慣用語，請直接套用正確名稱）：\n${hints}`;
+}
 async function updateItemPriceInCloud(id, newPrice) {
   try {
     showSyncing('儲存中');
@@ -2650,7 +2709,7 @@ function saveVoiceQuote() {
   document.getElementById('page-quotes').classList.add('active');
   window.scrollTo({top: 0, behavior: 'smooth'});
 
-  alert(`✓ 報價單已存檔！\n\n${newQuote.client} · NT$ ${amount.toLocaleString()}\n\n狀態：待回覆\n點「✓ 成交」→「派工」就能派給阿斗。`);
+  alert(`✓ 報價單已存檔！\n\n${newQuote.client} · NT$ ${amount.toLocaleString()}\n\n狀態：待回覆\n點「✓ 成交」→「派工」就能派給嘉豐。`);
 }
 
 function editVoiceQuote() {
@@ -2771,9 +2830,9 @@ function renderDetail() {
   if (q.status === 'unpaid') {
     bottomBtn = `<button class="btn btn-success" onclick="confirmPay('${q.id}')">✓ 確認收款</button>`;
   } else if (q.status === 'accepted') {
-    bottomBtn = `<button class="btn" style="background: var(--blue); color: #fff;" onclick="dispatchQuote('${q.id}')">📤 派工給阿斗</button>`;
+    bottomBtn = `<button class="btn" style="background: var(--blue); color: #fff;" onclick="dispatchQuote('${q.id}')">📤 派工給嘉豐</button>`;
   } else if (q.status === 'dispatched') {
-    bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 阿斗施工中</button>`;
+    bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 嘉豐施工中</button>`;
   } else if (q.status === 'pending') {
     bottomBtn = `
       <button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 客戶已確認（成交）</button>
@@ -2938,7 +2997,17 @@ function toggleEditMode() {
 function saveField(field, value) {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) return;
-  q[field] = value.trim();
+  const oldValue = q[field];
+  const newValue = value.trim();
+  q[field] = newValue;
+
+  // 如果修改了客戶名稱、聯絡人、地址等欄位，記錄修正對照
+  if (oldValue && newValue && oldValue !== newValue) {
+    const correctionFields = ['client', 'contact', 'address', 'remark'];
+    if (correctionFields.includes(field)) {
+      saveCorrection(oldValue, newValue, field);
+    }
+  }
 }
 
 function updateItem(idx, field, value) {
@@ -3079,7 +3148,7 @@ function acceptQuote(id) {
     renderDetail();
     renderFilterTabs();
     renderQuotesList();
-    alert('✓ 已成交！現在可以點「派工給阿斗」。');
+    alert('✓ 已成交！現在可以點「派工給嘉豐」。');
   }
 }
 
@@ -3087,7 +3156,7 @@ function acceptQuote(id) {
 async function acceptAndDispatch(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (!confirm(`確認「${q.client}」成交並直接派工給阿斗？`)) return;
+  if (!confirm(`確認「${q.client}」成交並直接派工給嘉豐？`)) return;
   q.status = 'accepted';
   await dispatchQuote(id);
 }
@@ -3122,7 +3191,7 @@ function fixDateFormat(dateStr) {
 async function dispatchQuote(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (!confirm(`派工給阿斗：${q.client}？\n\n阿斗的 App 會立即收到這筆訂單。`)) return;
+  if (!confirm(`派工給嘉豐：${q.client}？\n\n嘉豐的 App 會立即收到這筆訂單。`)) return;
 
   try {
     showSyncing('派工中');
@@ -3187,7 +3256,7 @@ async function dispatchQuote(id) {
 
     q.status = 'dispatched';
     showSynced('已派工');
-    alert(`📤 已派工給阿斗！\n\n「${q.client}」訂單已同步到雲端\n阿斗重新打開 App 就會看到。`);
+    alert(`📤 已派工給嘉豐！\n\n「${q.client}」訂單已同步到雲端\n嘉豐重新打開 App 就會看到。`);
     renderDetail();
     renderFilterTabs();
     renderQuotesList();
@@ -3556,7 +3625,7 @@ function renderQuotesList() {
       </div>`;
     } else if (q.status === 'dispatched') {
       actionRow = `<div class="quote-item-action">
-        <span class="quote-item-action-hint dispatched">✓ 已派給阿斗 · 施工中</span>
+        <span class="quote-item-action-hint dispatched">✓ 已派給嘉豐 · 施工中</span>
       </div>`;
     } else if (q.status === 'pending') {
       actionRow = `<div class="quote-item-action">
@@ -3589,10 +3658,10 @@ function renderQuotesList() {
         }
       } else if (e.target.classList.contains('btn-mini-accept')) {
         e.stopPropagation();
-        if (confirm(`確認「${q.client}」已成交？\n\n成交後就可以派工給阿斗。`)) {
+        if (confirm(`確認「${q.client}」已成交？\n\n成交後就可以派工給嘉豐。`)) {
           q.status = 'accepted';
           renderFilterTabs(); renderQuotesList();
-          alert(`✓ 已成交！\n\n現在可以點「派工」按鈕，把訂單指派給阿斗。`);
+          alert(`✓ 已成交！\n\n現在可以點「派工」按鈕，把訂單指派給嘉豐。`);
         }
       } else if (e.target.classList.contains('btn-mini-dispatch')) {
         e.stopPropagation();
@@ -3918,6 +3987,7 @@ async function init() {
 
   updateExamplePrices();
   await loadPhotosFromCloud();
+  await loadCorrections();
 
   renderFilterTabs();
   renderQuotesList();
