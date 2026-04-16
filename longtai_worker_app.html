@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2a4564">
+<title>隆泰帳篷 · 施工員</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #f0ebe0;
+  --bg-card: #fffdf7;
+  --ink: #1a1614;
+  --ink-soft: #5f564e;
+  --ink-faint: #9b9389;
+  --line: #d6ccbb;
+  --line-soft: #e5dcc8;
+  --worker: #2a4564;        /* 員工主色 - 深藍（與老闆端紅色區隔） */
+  --worker-soft: #d5dde8;
+  --worker-light: #e8eef5;
+  --amber: #c08037;
+  --amber-soft: #f7e4c9;
+  --green: #4a6741;
+  --green-soft: #dde5d3;
+  --alert: #c73e1d;
+  --shadow: 0 1px 2px rgba(26,22,20,0.04), 0 4px 12px rgba(26,22,20,0.06);
+  --shadow-lg: 0 2px 6px rgba(26,22,20,0.06), 0 12px 28px rgba(26,22,20,0.1);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(42,69,100,0.04) 0%, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(192,128,55,0.04) 0%, transparent 50%);
+  min-height: 100vh;
+}
+
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg);
+  position: relative;
+}
+
+/* HEADER - 員工版跟老闆版不同 */
+.header {
+  padding: 18px 20px 16px;
+  background: var(--worker);
+  color: #fff;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.1);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.brand-mark {
+  font-family: 'Fraunces', serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.brand-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 2px 6px;
+  border: 0.5px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+}
+
+.user-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7ed598;
+  box-shadow: 0 0 0 2px rgba(126,213,152,0.25);
+}
+
+.header-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.1em;
+}
+
+/* TAB NAV */
+.tabs {
+  display: flex;
+  background: var(--bg-card);
+  border-bottom: 0.5px solid var(--line);
+  padding: 0;
+  flex-shrink: 0;
+  position: sticky;
+  top: 73px;
+  z-index: 9;
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 13px 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  position: relative;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.tab-count {
+  display: inline-block;
+  background: var(--line);
+  color: var(--ink-soft);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+.tab.active {
+  color: var(--worker);
+}
+
+.tab.active .tab-count {
+  background: var(--worker);
+  color: #fff;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -0.5px;
+  left: 25%; right: 25%;
+  height: 2.5px;
+  background: var(--worker);
+  border-radius: 2px;
+}
+
+/* MAIN */
+.main {
+  flex: 1;
+  padding: 18px 16px 80px;
+}
+
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.3s ease-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-title {
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+
+.page-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* TODAY ALERT */
+.today-alert {
+  background: var(--amber-soft);
+  border: 0.5px solid #e8c98a;
+  border-left: 4px solid var(--amber);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.today-alert-title {
+  font-weight: 600;
+  color: #7a5019;
+  font-size: 14px;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.today-alert-body {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* ORDER CARD */
+.order-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+.order-card:active {
+  transform: scale(0.99);
+}
+
+.order-card.urgent {
+  border-left: 4px solid var(--alert);
+}
+
+.order-card.ongoing {
+  border-left: 4px solid var(--amber);
+}
+
+.order-card.done {
+  border-left: 4px solid var(--green);
+  opacity: 0.88;
+}
+
+.order-card-top {
+  padding: 14px 16px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.order-card-client {
+  font-family: 'Fraunces', serif;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.order-card-status {
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.status-pending-setup { background: var(--amber-soft); color: #7a5019; }
+.status-in-setup { background: var(--worker-soft); color: var(--worker); }
+.status-pending-teardown { background: #f7e4d8; color: #9b4a1e; }
+.status-done { background: var(--green-soft); color: #2a5240; }
+
+.order-card-info {
+  padding: 0 16px 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  font-size: 13px;
+  align-items: start;
+  line-height: 1.5;
+}
+
+.info-icon {
+  color: var(--ink-faint);
+  font-size: 13px;
+  margin-top: 1px;
+}
+
+.info-text {
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.info-text .label {
+  color: var(--ink-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+
+.info-text .phone-link {
+  color: var(--worker);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.order-card-dates {
+  padding: 10px 16px;
+  background: #fbf7ec;
+  border-top: 0.5px solid var(--line-soft);
+  border-bottom: 0.5px solid var(--line-soft);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.date-chunk {
+  text-align: center;
+}
+
+.date-chunk-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-faint);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.date-chunk-value {
+  font-family: 'Fraunces', serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.date-chunk-value.tomorrow { color: var(--alert); }
+.date-chunk-value.today { color: var(--amber); }
+
+.order-card-actions {
+  padding: 12px 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.action-btn-main {
+  background: var(--worker);
+  color: #fff;
+}
+.action-btn-main:active { background: #1e3450; }
+
+.action-btn-success {
+  background: var(--green);
+  color: #fff;
+}
+.action-btn-success:active { background: #3a5333; }
+
+.action-btn-sec {
+  background: var(--bg);
+  color: var(--ink);
+  border: 0.5px solid var(--line);
+}
+
+/* DETAIL VIEW */
+.back-row {
+  margin-bottom: 14px;
+}
+
+.back-btn {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.detail-header {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 18px 18px 16px;
+  margin-bottom: 12px;
+  border: 0.5px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.detail-client {
+  font-family: 'Fraunces', serif;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.detail-order-no {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+  margin-bottom: 14px;
+}
+
+.detail-section {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  border: 0.5px solid var(--line);
+}
+
+.detail-section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-info-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-field {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 10px;
+  font-size: 14px;
+  align-items: baseline;
+}
+
+.detail-field-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+
+.detail-field-value {
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.detail-field-value a {
+  color: var(--worker);
+  text-decoration: none;
+}
+
+/* Item list (no prices) */
+.item-list {
+  display: grid;
+  gap: 10px;
+}
+
+.item-line {
+  padding: 11px 12px;
+  background: var(--worker-light);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 3px solid var(--worker);
+}
+
+.item-line-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.item-line-qty {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--worker);
+  background: #fff;
+  padding: 3px 12px;
+  border-radius: 14px;
+  min-width: 54px;
+  text-align: center;
+}
+
+/* Remark for worker */
+.worker-remark {
+  background: #fffbf0;
+  border: 0.5px solid #e8d98a;
+  border-left: 3px solid #c0a030;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+/* PHOTO UPLOAD for this order */
+.photo-upload-area {
+  margin-top: 6px;
+}
+
+.photo-upload-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.photo-upload-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--line);
+  background: var(--bg-card);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.photo-upload-btn:active {
+  background: var(--worker-light);
+  border-color: var(--worker);
+  color: var(--worker);
+}
+
+.photo-upload-btn.final {
+  background: var(--green-soft);
+  border: 1.5px solid var(--green);
+  border-style: solid;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.photo-thumb {
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, var(--line-soft), #c4b9a2);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-thumb svg {
+  width: 60%; height: 60%;
+  opacity: 0.4;
+}
+
+.photo-thumb-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255,255,255,0.95);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.photo-thumb.is-final {
+  border: 2.5px solid var(--green);
+}
+
+.photo-thumb.is-final::after {
+  content: '✓ 完成';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--green);
+  color: #fff;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 10px;
+  padding: 2px 4px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.photo-note-editor {
+  margin-top: 10px;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.photo-note-editor label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.photo-note-editor textarea {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--line);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg-card);
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.photo-note-editor textarea:focus {
+  outline: none;
+  border-color: var(--worker);
+  box-shadow: 0 0 0 3px rgba(42,69,100,0.1);
+}
+
+/* BIG ACTION (bottom) */
+.big-action-container {
+  margin: 18px 0 10px;
+}
+
+.big-action {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: none;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.1s;
+}
+
+.big-action:active { transform: scale(0.98); }
+
+.big-action.primary {
+  background: var(--worker);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(42,69,100,0.25);
+}
+
+.big-action.success {
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(74,103,65,0.25);
+}
+
+.big-action.alert {
+  background: var(--alert);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(199,62,29,0.25);
+}
+
+.big-action-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* MODAL */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(26,22,20,0.65);
+  z-index: 100;
+  padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: fadeIn 0.2s;
+}
+
+.modal-backdrop.visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border-radius: 16px;
+  max-width: 400px;
+  width: 100%;
+  padding: 24px 22px;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  font-size: 26px;
+}
+
+.modal-title {
+  font-family: 'Fraunces', serif;
+  font-size: 20px;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.modal-sub {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+}
+
+.date-picker-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.date-picker-option {
+  padding: 12px 8px;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.1s;
+}
+
+.date-picker-option.selected {
+  background: var(--worker);
+  border-color: var(--worker);
+  color: #fff;
+}
+
+.date-picker-option-day {
+  font-family: 'Fraunces', serif;
+  font-size: 20px;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.date-picker-option-week {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.custom-date {
+  width: 100%;
+  padding: 12px;
+  border: 0.5px solid var(--line);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  margin-bottom: 16px;
+  background: var(--bg);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.modal-btn-primary {
+  background: var(--worker);
+  color: #fff;
+}
+
+.modal-btn-sec {
+  background: var(--bg);
+  color: var(--ink);
+  border: 0.5px solid var(--line);
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-family: 'Fraunces', serif;
+  font-size: 48px;
+  color: var(--line);
+  margin-bottom: 12px;
+  line-height: 1;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+
+.empty-sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* HISTORY */
+.history-item {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  border-left: 3px solid var(--green);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.history-item:active { transform: scale(0.99); }
+
+.history-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+  gap: 10px;
+}
+
+.history-client {
+  font-family: 'Fraunces', serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.history-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.history-meta {
+  font-size: 11px;
+  color: var(--ink-soft);
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="header">
+    <div class="header-top">
+      <div class="brand">
+        <div class="brand-mark">隆泰帳篷</div>
+        <div class="brand-tag">施工員</div>
+      </div>
+      <div class="user-badge">
+        <span class="user-dot"></span>
+        <span id="workerName">阿斗</span>
+      </div>
+    </div>
+    <div class="header-date" id="todayDate">Today · 2026/04/16 · 週四</div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="setup">
+      要搭設<span class="tab-count" id="countSetup">2</span>
+    </button>
+    <button class="tab" data-tab="teardown">
+      待拆除<span class="tab-count" id="countTeardown">1</span>
+    </button>
+    <button class="tab" data-tab="history">
+      已完成<span class="tab-count" id="countHistory">3</span>
+    </button>
+  </nav>
+
+  <main class="main">
+
+    <!-- ==================== SETUP TAB ==================== -->
+    <section class="page active" id="page-setup">
+      <h1 class="page-title">今日施工</h1>
+      <p class="page-sub">Setup today · 需要去搭的工地</p>
+
+      <div class="today-alert">
+        <div class="today-alert-title">☀ 今天有 1 個工地要搭</div>
+        <div class="today-alert-body">阿城餐廳 · 預計 09:00 開工</div>
+      </div>
+
+      <div id="setupList"></div>
+    </section>
+
+    <!-- ==================== TEARDOWN TAB ==================== -->
+    <section class="page" id="page-teardown">
+      <h1 class="page-title">待拆除工地</h1>
+      <p class="page-sub">Teardown schedule · 活動結束待拆</p>
+
+      <div id="teardownList"></div>
+    </section>
+
+    <!-- ==================== HISTORY TAB ==================== -->
+    <section class="page" id="page-history">
+      <h1 class="page-title">歷史紀錄</h1>
+      <p class="page-sub">Completed · 已完成的工地</p>
+
+      <div id="historyList"></div>
+    </section>
+
+    <!-- ==================== ORDER DETAIL ==================== -->
+    <section class="page" id="page-detail">
+      <div class="back-row">
+        <button class="back-btn" id="backBtn">← 返回列表</button>
+      </div>
+      <div id="detailContent"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- SETUP COMPLETE MODAL -->
+<div class="modal-backdrop" id="setupCompleteModal">
+  <div class="modal-box">
+    <div class="modal-icon">✓</div>
+    <div class="modal-title">搭設完成</div>
+    <div class="modal-sub">請選擇拆除日期，系統會自動排入「待拆除」清單</div>
+    <div class="date-picker-row" id="datePickerRow"></div>
+    <input type="date" class="custom-date" id="customDate">
+    <div class="modal-actions">
+      <button class="modal-btn-sec" onclick="closeSetupModal()">取消</button>
+      <button class="modal-btn-primary" id="confirmSetupBtn">確認完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEARDOWN DONE MODAL -->
+<div class="modal-backdrop" id="teardownDoneModal">
+  <div class="modal-box">
+    <div class="modal-icon" style="background: var(--amber-soft); color: var(--amber);">✓</div>
+    <div class="modal-title">確認已拆除完成？</div>
+    <div class="modal-sub" id="teardownClientName">所有器材已撤場，此訂單將歸檔</div>
+    <div class="modal-actions">
+      <button class="modal-btn-sec" onclick="closeTeardownModal()">取消</button>
+      <button class="modal-btn-primary" id="confirmTeardownBtn" style="background: var(--green);">✓ 確認拆除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== DATA ==========
+const today = new Date('2026-04-16');
+
+const orders = [
+  {
+    id: 'o1',
+    no: 'ORD-20260416-001',
+    client: '阿城餐廳婚宴',
+    contact: '陳老闆',
+    phone: '0922-333-444',
+    address: '台北市大安區忠孝東路四段 200 號',
+    items: [
+      { name: '10×20 帳篷', qty: 2 },
+      { name: '串燈裝飾', qty: 6 }
+    ],
+    remark: '1. 帳布限用白色款\n2. 場地卸貨請從後門進出\n3. 新郎新娘希望入口朝南',
+    setupDate: '2026/04/16',
+    eventDate: '2026/05/12',
+    teardownDate: null,
+    status: 'pending-setup',
+    photos: []
+  },
+  {
+    id: 'o2',
+    no: 'ORD-20260417-001',
+    client: '大興國小園遊會',
+    contact: '王主任',
+    phone: '04-2345-6789',
+    address: '台中市北區學士路 100 號',
+    items: [
+      { name: '6×6 攤位帳', qty: 10 },
+      { name: '長桌 180cm', qty: 20 },
+      { name: '折疊椅', qty: 100 }
+    ],
+    remark: '1. 操場東側一字排開\n2. 風大要加地釘\n3. 中央走道 3 米寬',
+    setupDate: '2026/04/17',
+    eventDate: '2026/04/18',
+    teardownDate: null,
+    status: 'pending-setup',
+    photos: []
+  },
+  {
+    id: 'o3',
+    no: 'ORD-20260412-003',
+    client: '永豐銀行尾牙',
+    contact: 'HR林小姐',
+    phone: '02-2345-6789',
+    address: '台北市信義區松仁路 100 號',
+    items: [
+      { name: '20×30 舞台帳', qty: 1 },
+      { name: '燈光音響', qty: 1 }
+    ],
+    remark: '1. 飯店宴會廳使用\n2. 舞台前留 2 米淨空\n3. 燈桁架由技術組安裝',
+    setupDate: '2026/04/14',
+    eventDate: '2026/04/15',
+    teardownDate: '2026/04/16',
+    status: 'pending-teardown',
+    photos: [
+      { id: 'p1', label: 'setup', note: '背板架設完成' },
+      { id: 'p2', label: 'final', note: '全部完工照 — 背板高 4 米，燈光調至暖黃' }
+    ]
+  },
+  {
+    id: 'o4',
+    no: 'ORD-20260410-001',
+    client: '清水巖媽祖遶境',
+    contact: '王總幹事',
+    phone: '0933-111-555',
+    address: '彰化縣鹿港鎮中山路 60 號',
+    items: [
+      { name: '3×3 攤位帳 (3天)', qty: 15 }
+    ],
+    remark: '1. 沿廟埕外牆排一圈\n2. 不可擋到消防通道',
+    setupDate: '2026/04/08',
+    eventDate: '2026/04/08-10',
+    teardownDate: '2026/04/10',
+    status: 'done',
+    photos: [
+      { id: 'p3', label: 'setup', note: '15 座攤位帳已搭好' },
+      { id: 'p4', label: 'final', note: '完工照 — 排一圈靠牆，走道淨寬 3 米' },
+      { id: 'p5', label: 'teardown', note: '已拆除完畢，場地清潔完成' }
+    ]
+  },
+  {
+    id: 'o5',
+    no: 'ORD-20260405-001',
+    client: '陽明山婚禮',
+    contact: '新娘 林小姐',
+    phone: '0912-666-777',
+    address: '陽明山莊',
+    items: [{ name: '10×20 帳篷', qty: 1 }],
+    remark: '1. 山上風大，地釘打深 30cm\n2. 主桿下加壓重沙包',
+    setupDate: '2026/04/05',
+    eventDate: '2026/04/06',
+    teardownDate: '2026/04/06',
+    status: 'done',
+    photos: [
+      { id: 'p6', label: 'final', note: '戶外婚禮搭設完成' }
+    ]
+  },
+  {
+    id: 'o6',
+    no: 'ORD-20260330-001',
+    client: '文創河濱市集',
+    contact: '活動組',
+    phone: '0935-222-111',
+    address: '台北市大稻埕河濱公園',
+    items: [{ name: '6×6 攤位帳', qty: 8 }],
+    remark: '1. 水泥地不能打釘\n2. 每帳 80kg 配重',
+    setupDate: '2026/03/30',
+    eventDate: '2026/03/31',
+    teardownDate: '2026/03/31',
+    status: 'done',
+    photos: []
+  }
+];
+
+const statusMap = {
+  'pending-setup': { label: '等待搭設', cls: 'status-pending-setup' },
+  'in-setup': { label: '搭設中', cls: 'status-in-setup' },
+  'pending-teardown': { label: '待拆除', cls: 'status-pending-teardown' },
+  'done': { label: '已完成', cls: 'status-done' }
+};
+
+// ========== TAB NAV ==========
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('page-' + t.dataset.tab).classList.add('active');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  });
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  // figure out which tab to return to based on order status
+  const o = orders.find(x => x.id === currentDetailId);
+  let tab = 'setup';
+  if (o) {
+    if (o.status === 'pending-teardown') tab = 'teardown';
+    else if (o.status === 'done') tab = 'history';
+    else tab = 'setup';
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+});
+
+// ========== RENDER ==========
+function formatDateDiff(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr.replace(/\//g, '-'));
+  const diffDays = Math.round((d - today) / 86400000);
+  if (diffDays === 0) return { text: '今天', cls: 'today' };
+  if (diffDays === 1) return { text: '明天', cls: 'tomorrow' };
+  if (diffDays > 1 && diffDays <= 7) return { text: `${diffDays} 天後`, cls: '' };
+  if (diffDays < 0) return { text: `${Math.abs(diffDays)} 天前`, cls: '' };
+  return { text: dateStr, cls: '' };
+}
+
+function renderSetup() {
+  const list = document.getElementById('setupList');
+  list.innerHTML = '';
+  const items = orders.filter(o => o.status === 'pending-setup' || o.status === 'in-setup');
+
+  if (items.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✓</div>
+        <div class="empty-text">目前沒有要搭的工地</div>
+        <div class="empty-sub">Nothing to set up</div>
+      </div>`;
+    return;
+  }
+
+  items.forEach(o => {
+    const setupDiff = formatDateDiff(o.setupDate);
+    const eventDiff = formatDateDiff(o.eventDate);
+    const urgentClass = (setupDiff.text === '今天' || setupDiff.text === '明天') ? 'urgent' : '';
+
+    const card = document.createElement('div');
+    card.className = `order-card ${urgentClass}`;
+    card.innerHTML = `
+      <div class="order-card-top">
+        <div class="order-card-client">${o.client}</div>
+        <div class="order-card-status ${statusMap[o.status].cls}">${statusMap[o.status].label}</div>
+      </div>
+      <div class="order-card-info">
+        <div class="info-row">
+          <span class="info-icon">◉</span>
+          <div class="info-text"><span class="label">地址</span>${o.address}</div>
+        </div>
+        <div class="info-row">
+          <span class="info-icon">☎</span>
+          <div class="info-text"><span class="label">聯絡</span>${o.contact} · <a href="tel:${o.phone}" class="phone-link" onclick="event.stopPropagation()">${o.phone}</a></div>
+        </div>
+        <div class="info-row">
+          <span class="info-icon">▤</span>
+          <div class="info-text"><span class="label">品項</span>${o.items.map(i => `${i.name} ×${i.qty}`).join('、')}</div>
+        </div>
+      </div>
+      <div class="order-card-dates">
+        <div class="date-chunk">
+          <div class="date-chunk-label">搭設日期</div>
+          <div class="date-chunk-value ${setupDiff.cls}">${o.setupDate.substring(5)} · ${setupDiff.text}</div>
+        </div>
+        <div class="date-chunk">
+          <div class="date-chunk-label">活動日期</div>
+          <div class="date-chunk-value ${eventDiff.cls}">${o.eventDate.substring(5)} · ${eventDiff.text}</div>
+        </div>
+      </div>
+      <div class="order-card-actions">
+        <button class="action-btn action-btn-sec">查看詳細</button>
+      </div>
+    `;
+    card.addEventListener('click', () => showDetail(o.id));
+    list.appendChild(card);
+  });
+}
+
+function renderTeardown() {
+  const list = document.getElementById('teardownList');
+  list.innerHTML = '';
+  const items = orders.filter(o => o.status === 'pending-teardown');
+
+  if (items.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">—</div>
+        <div class="empty-text">沒有待拆除的工地</div>
+        <div class="empty-sub">Nothing to tear down</div>
+      </div>`;
+    return;
+  }
+
+  items.forEach(o => {
+    const teardownDiff = formatDateDiff(o.teardownDate);
+    const urgent = (teardownDiff.text === '今天' || teardownDiff.text.includes('前'));
+
+    const card = document.createElement('div');
+    card.className = `order-card ongoing ${urgent ? 'urgent' : ''}`;
+    card.innerHTML = `
+      <div class="order-card-top">
+        <div class="order-card-client">${o.client}</div>
+        <div class="order-card-status ${statusMap[o.status].cls}">${statusMap[o.status].label}</div>
+      </div>
+      <div class="order-card-info">
+        <div class="info-row">
+          <span class="info-icon">◉</span>
+          <div class="info-text"><span class="label">地址</span>${o.address}</div>
+        </div>
+        <div class="info-row">
+          <span class="info-icon">☎</span>
+          <div class="info-text"><span class="label">聯絡</span>${o.contact} · <a href="tel:${o.phone}" class="phone-link" onclick="event.stopPropagation()">${o.phone}</a></div>
+        </div>
+        <div class="info-row">
+          <span class="info-icon">▤</span>
+          <div class="info-text"><span class="label">品項</span>${o.items.map(i => `${i.name} ×${i.qty}`).join('、')}</div>
+        </div>
+      </div>
+      <div class="order-card-dates">
+        <div class="date-chunk">
+          <div class="date-chunk-label">活動日期</div>
+          <div class="date-chunk-value">${o.eventDate.substring(5)}</div>
+        </div>
+        <div class="date-chunk">
+          <div class="date-chunk-label">拆除日期</div>
+          <div class="date-chunk-value ${teardownDiff.cls}">${o.teardownDate.substring(5)} · ${teardownDiff.text}</div>
+        </div>
+      </div>
+      <div class="order-card-actions">
+        <button class="action-btn action-btn-sec">查看詳細</button>
+        <button class="action-btn action-btn-success" onclick="event.stopPropagation(); openTeardownModal('${o.id}')">✓ 確認拆除</button>
+      </div>
+    `;
+    card.addEventListener('click', () => showDetail(o.id));
+    list.appendChild(card);
+  });
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  const items = orders.filter(o => o.status === 'done');
+
+  if (items.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">—</div>
+        <div class="empty-text">還沒有完成的工地</div>
+      </div>`;
+    return;
+  }
+
+  items.forEach(o => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <div class="history-top">
+        <div class="history-client">${o.client}</div>
+        <div class="history-date">${o.eventDate.substring(5)}</div>
+      </div>
+      <div class="history-meta">
+        <span>${o.items.length} 種品項</span>
+        <span>·</span>
+        <span>${o.photos.length} 張照片</span>
+      </div>
+    `;
+    item.addEventListener('click', () => showDetail(o.id));
+    list.appendChild(item);
+  });
+}
+
+// ========== DETAIL VIEW ==========
+let currentDetailId = null;
+
+function showDetail(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  currentDetailId = id;
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-detail').classList.add('active');
+
+  const s = statusMap[o.status];
+
+  const itemsHTML = o.items.map(i => `
+    <div class="item-line">
+      <span class="item-line-name">${i.name}</span>
+      <span class="item-line-qty">×${i.qty}</span>
+    </div>
+  `).join('');
+
+  const photosHTML = o.photos.length > 0 ? `
+    <div class="photo-grid">
+      ${o.photos.map(p => `
+        <div class="photo-thumb ${p.label === 'final' ? 'is-final' : ''}">
+          <svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="1">
+            <path d="M10 70 L50 30 L90 70 Z"/>
+            <path d="M50 30 L50 70"/>
+            <path d="M10 70 L90 70"/>
+          </svg>
+          ${p.label === 'teardown' ? '<div class="photo-thumb-badge">拆</div>' : ''}
+        </div>
+      `).join('')}
+    </div>
+  ` : '<div style="font-size:12px; color:var(--ink-faint); padding:10px 0;">尚未拍攝照片</div>';
+
+  // Main action based on status
+  let bigAction = '';
+  if (o.status === 'pending-setup' || o.status === 'in-setup') {
+    bigAction = `
+      <div class="big-action-container">
+        <button class="big-action success" onclick="openSetupModal('${o.id}')">
+          ✓ 搭設完成
+        </button>
+        <div class="big-action-hint">按下後請輸入拆除日期</div>
+      </div>
+    `;
+  } else if (o.status === 'pending-teardown') {
+    bigAction = `
+      <div class="big-action-container">
+        <button class="big-action alert" onclick="openTeardownModal('${o.id}')">
+          ✓ 已拆除完成
+        </button>
+        <div class="big-action-hint">撤場完畢後按此歸檔</div>
+      </div>
+    `;
+  }
+
+  const setupDiff = formatDateDiff(o.setupDate);
+  const eventDiff = formatDateDiff(o.eventDate);
+  const teardownDiff = o.teardownDate ? formatDateDiff(o.teardownDate) : null;
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-client">${o.client}</div>
+      <div class="detail-order-no">${o.no}</div>
+      <div class="order-card-status ${s.cls}" style="display:inline-block;">${s.label}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">CLIENT · 客戶資訊</div>
+      <div class="detail-info-grid">
+        <div class="detail-field">
+          <span class="detail-field-label">地址</span>
+          <span class="detail-field-value">${o.address}</span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-field-label">聯絡人</span>
+          <span class="detail-field-value">${o.contact}</span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-field-label">電話</span>
+          <span class="detail-field-value"><a href="tel:${o.phone}">${o.phone}</a></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">SCHEDULE · 時程</div>
+      <div class="detail-info-grid">
+        <div class="detail-field">
+          <span class="detail-field-label">搭設</span>
+          <span class="detail-field-value">${o.setupDate} · ${setupDiff.text}</span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-field-label">活動</span>
+          <span class="detail-field-value">${o.eventDate} · ${eventDiff.text}</span>
+        </div>
+        ${o.teardownDate ? `
+        <div class="detail-field">
+          <span class="detail-field-label">拆除</span>
+          <span class="detail-field-value">${o.teardownDate} · ${teardownDiff.text}</span>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">ITEMS · 需要品項</div>
+      <div class="item-list">${itemsHTML}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">NOTES · 老闆備註</div>
+      <div class="worker-remark">${o.remark}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">
+        <span>PHOTOS · 現場紀錄</span>
+        <span style="color: var(--worker); font-weight:600;">${o.photos.length} 張</span>
+      </div>
+      <div class="photo-upload-area">
+        <div class="photo-upload-row">
+          <button class="photo-upload-btn" onclick="simulatePhoto('${o.id}', 'setup')">
+            <span>📷</span> 過程照片
+          </button>
+          <button class="photo-upload-btn final" onclick="simulatePhoto('${o.id}', 'final')">
+            <span>✓</span> 搭設完成照
+          </button>
+        </div>
+        ${photosHTML}
+        <div class="photo-note-editor">
+          <label>NOTES · 施工筆記（可寫怎麼搭、注意事項）</label>
+          <textarea placeholder="例：主桿下加壓重沙包、燈串從左上拉到右下、客人要求入口朝南..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    ${bigAction}
+  `;
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function simulatePhoto(orderId, label) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+  o.photos.push({
+    id: 'p' + Date.now(),
+    label: label,
+    note: ''
+  });
+  const msg = label === 'final' ? '✓ 搭設完成照已上傳\n\n已同步到老闆的相簿，自動綁定此訂單' : '📷 照片已上傳\n\n自動同步到老闆的相簿';
+  alert(msg);
+  showDetail(orderId);
+}
+
+// ========== SETUP COMPLETE MODAL ==========
+let pendingSetupOrderId = null;
+let pickedTeardownDate = null;
+
+function openSetupModal(orderId) {
+  pendingSetupOrderId = orderId;
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+
+  // Generate quick date options: event date, event+1, event+2
+  const eventDate = new Date(o.eventDate.replace(/\//g, '-'));
+  const options = [
+    { date: new Date(eventDate), label: '活動當天' },
+    { date: new Date(eventDate.getTime() + 86400000), label: '活動後一天' },
+    { date: new Date(eventDate.getTime() + 86400000 * 2), label: '活動後兩天' }
+  ];
+
+  const weekLabels = ['日', '一', '二', '三', '四', '五', '六'];
+
+  const pickerRow = document.getElementById('datePickerRow');
+  pickerRow.innerHTML = '';
+  options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'date-picker-option' + (idx === 1 ? ' selected' : '');
+    const m = opt.date.getMonth() + 1;
+    const d = opt.date.getDate();
+    const w = weekLabels[opt.date.getDay()];
+    btn.innerHTML = `
+      <span class="date-picker-option-day">${m}/${d}</span>
+      <span class="date-picker-option-week">週${w} · ${opt.label}</span>
+    `;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.date-picker-option').forEach(x => x.classList.remove('selected'));
+      btn.classList.add('selected');
+      pickedTeardownDate = `${opt.date.getFullYear()}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+      document.getElementById('customDate').value = '';
+    });
+    pickerRow.appendChild(btn);
+  });
+
+  // default to option 2 (event+1)
+  pickedTeardownDate = `${options[1].date.getFullYear()}/${String(options[1].date.getMonth()+1).padStart(2,'0')}/${String(options[1].date.getDate()).padStart(2,'0')}`;
+
+  document.getElementById('customDate').addEventListener('change', (e) => {
+    if (e.target.value) {
+      document.querySelectorAll('.date-picker-option').forEach(x => x.classList.remove('selected'));
+      pickedTeardownDate = e.target.value.replace(/-/g, '/');
+    }
+  });
+
+  document.getElementById('setupCompleteModal').classList.add('visible');
+}
+
+function closeSetupModal() {
+  document.getElementById('setupCompleteModal').classList.remove('visible');
+}
+
+document.getElementById('confirmSetupBtn').addEventListener('click', () => {
+  const o = orders.find(x => x.id === pendingSetupOrderId);
+  if (!o || !pickedTeardownDate) return;
+  o.status = 'pending-teardown';
+  o.teardownDate = pickedTeardownDate;
+  closeSetupModal();
+  alert(`✓ 搭設完成！\n\n拆除日期：${pickedTeardownDate}\n已加入「待拆除」清單，老闆也會同步看到。`);
+  renderAll();
+  showDetail(pendingSetupOrderId);
+});
+
+// ========== TEARDOWN DONE MODAL ==========
+let pendingTeardownId = null;
+
+function openTeardownModal(orderId) {
+  pendingTeardownId = orderId;
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+  document.getElementById('teardownClientName').textContent = `${o.client} · 器材已撤場`;
+  document.getElementById('teardownDoneModal').classList.add('visible');
+}
+
+function closeTeardownModal() {
+  document.getElementById('teardownDoneModal').classList.remove('visible');
+}
+
+document.getElementById('confirmTeardownBtn').addEventListener('click', () => {
+  const o = orders.find(x => x.id === pendingTeardownId);
+  if (!o) return;
+  o.status = 'done';
+  closeTeardownModal();
+  alert(`✓ 已拆除完成！\n\n${o.client} 訂單已歸檔，老闆那邊會自動更新進度。`);
+  renderAll();
+  // switch to history tab to show the completed item
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-tab="history"]').classList.add('active');
+  document.getElementById('page-history').classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+});
+
+// ========== INIT ==========
+function updateCounts() {
+  document.getElementById('countSetup').textContent = orders.filter(o => o.status === 'pending-setup' || o.status === 'in-setup').length;
+  document.getElementById('countTeardown').textContent = orders.filter(o => o.status === 'pending-teardown').length;
+  document.getElementById('countHistory').textContent = orders.filter(o => o.status === 'done').length;
+}
+
+function renderAll() {
+  updateCounts();
+  renderSetup();
+  renderTeardown();
+  renderHistory();
+}
+
+renderAll();
+
+// click outside modal to close
+document.getElementById('setupCompleteModal').addEventListener('click', (e) => {
+  if (e.target.id === 'setupCompleteModal') closeSetupModal();
+});
+document.getElementById('teardownDoneModal').addEventListener('click', (e) => {
+  if (e.target.id === 'teardownDoneModal') closeTeardownModal();
+});
+
+</script>
+</body>
+</html>
