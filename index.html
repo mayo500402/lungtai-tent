@@ -3196,63 +3196,98 @@ async function dispatchQuote(id) {
   try {
     showSyncing('派工中');
 
-    // 1. 先把報價單存到雲端 quotes 表（如果還沒存過）
+    // 1. 先查雲端有沒有這張報價單（避免重複 INSERT）
     let quoteId = q.cloud_id;
 
     if (!quoteId) {
-      const { data: newQuote, error: qErr } = await db
+      // 用 quote_no 查看雲端有沒有
+      const { data: existing } = await db
         .from('quotes')
-        .insert([{
-          quote_no: q.no,
-          client_name: q.client,
-          client_tax_id: q.tax || '',
-          client_contact: q.contact || '',
-          client_phone: q.phone || '',
-          setup_date: fixDateFormat(q.setupDate),
-          event_date_start: fixDateFormat(q.eventDate),
-          total_amount: q.amount,
-          payment_method: q.paymentMethod || '現金',
+        .select('id')
+        .eq('quote_no', q.no)
+        .maybeSingle();
+
+      if (existing) {
+        // 已存在，直接用它的 id
+        quoteId = existing.id;
+        q.cloud_id = quoteId;
+        // 更新狀態
+        await db.from('quotes').update({
           status: 'dispatched',
-          remark: q.remark || '',
-          created_by: 'boss',
           dispatched_at: new Date().toISOString()
-        }])
-        .select();
+        }).eq('id', quoteId);
+      } else {
+        // 不存在，新建
+        const { data: newQuote, error: qErr } = await db
+          .from('quotes')
+          .insert([{
+            quote_no: q.no,
+            client_name: q.client,
+            client_tax_id: q.tax || '',
+            client_contact: q.contact || '',
+            client_phone: q.phone || '',
+            setup_date: fixDateFormat(q.setupDate),
+            event_date_start: fixDateFormat(q.eventDate),
+            total_amount: q.amount,
+            payment_method: q.paymentMethod || '現金',
+            status: 'dispatched',
+            remark: q.remark || '',
+            created_by: 'boss',
+            dispatched_at: new Date().toISOString()
+          }])
+          .select();
 
-      if (qErr) throw qErr;
-      quoteId = newQuote[0].id;
-      q.cloud_id = quoteId;
+        if (qErr) throw qErr;
+        quoteId = newQuote[0].id;
+        q.cloud_id = quoteId;
 
-      // 2. 存品項明細
-      if (q.items && q.items.length > 0) {
-        const itemRows = q.items.map((item, idx) => ({
-          quote_id: quoteId,
-          item_name: item.name,
-          quantity: item.qty,
-          unit_price: item.price,
-          sort_order: idx
-        }));
-        await db.from('quote_items').insert(itemRows);
+        // 存品項明細
+        if (q.items && q.items.length > 0) {
+          const itemRows = q.items.map((item, idx) => ({
+            quote_id: quoteId,
+            item_name: item.name,
+            quantity: item.qty,
+            unit_price: item.price,
+            sort_order: idx
+          }));
+          await db.from('quote_items').insert(itemRows);
+        }
       }
     } else {
-      // 已存過，只更新狀態
+      // 已有 cloud_id，只更新狀態
       await db.from('quotes').update({
         status: 'dispatched',
         dispatched_at: new Date().toISOString()
       }).eq('id', quoteId);
     }
 
-    // 3. 建立派工紀錄
-    const { error: dErr } = await db
+    // 2. 檢查是否已經有派工紀錄（避免重複派工）
+    const { data: existingDispatch } = await db
       .from('dispatches')
-      .insert([{
-        quote_id: quoteId,
-        worker_username: 'worker',
-        status: 'pending',
-        dispatched_at: new Date().toISOString()
-      }]);
+      .select('id')
+      .eq('quote_id', quoteId)
+      .eq('worker_username', 'worker')
+      .maybeSingle();
 
-    if (dErr) throw dErr;
+    if (existingDispatch) {
+      // 已經派過了，更新狀態就好
+      await db.from('dispatches').update({
+        status: 'pending',
+        dispatched_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }).eq('id', existingDispatch.id);
+    } else {
+      // 新建派工紀錄
+      const { error: dErr } = await db
+        .from('dispatches')
+        .insert([{
+          quote_id: quoteId,
+          worker_username: 'worker',
+          status: 'pending',
+          dispatched_at: new Date().toISOString()
+        }]);
+      if (dErr) throw dErr;
+    }
 
     q.status = 'dispatched';
     showSynced('已派工');
