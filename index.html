@@ -2444,13 +2444,78 @@ const examples = [
 ];
 
 // Saved quotes
-const savedQuotes = [
+let savedQuotes = [
   { id: 'q1', no: 'Q20260415-002', client: '永豐銀行尾牙', amount: 187500, status: 'paid', date: '04/15', paymentMethod: '轉帳', items: [{name:'25尺帳篷', qty:3, price:1800},{name:'舞台', qty:1, price:1000},{name:'電燈', qty:20, price:150}], setupDate:'04/14', eventDate:'04/15', contact:'HR林小姐', phone:'02-2345-6789', tax:'12345678', remark:'本報價單有效期 7 天' },
   { id: 'q2', no: 'Q20260414-001', client: '阿城餐廳婚宴', amount: 62600, status: 'accepted', date: '04/14', paymentMethod: '現金', items: [{name:'31尺白色帳篷', qty:2, price:2500},{name:'塑膠椅子', qty:50, price:10},{name:'長桌+桌巾', qty:10, price:230}], setupDate:'05/10', eventDate:'05/12', contact:'陳老闆', phone:'0922-333-444', tax:'28456789', remark:'帳布限用白色款' },
   { id: 'q3', no: 'Q20260412-003', client: '大興國小園遊會', amount: 16500, status: 'unpaid', date: '04/12', paymentMethod: '轉帳', items: [{name:'16尺帳篷', qty:10, price:600},{name:'長桌', qty:20, price:200}], setupDate:'04/11', eventDate:'04/12', contact:'王主任', phone:'04-2345-6789', tax:'04567891', remark:'活動已完成，待收尾款' },
   { id: 'q4', no: 'Q20260410-001', client: '清水巖遶境', amount: 10500, status: 'unpaid', date: '04/10', paymentMethod: '現金', items: [{name:'12尺帳篷', qty:15, price:600},{name:'塑膠椅子', qty:150, price:10}], setupDate:'04/08', eventDate:'04/08-10', contact:'王總幹事', phone:'0933-111-555', tax:'—', remark:'活動已完成，待收款' },
   { id: 'q5', no: 'Q20260408-002', client: '誠品園遊會', amount: 8600, status: 'pending', date: '04/08', paymentMethod: '轉帳', items: [{name:'歐式帳篷', qty:8, price:600},{name:'長桌', qty:16, price:200}], setupDate:'05/05', eventDate:'05/06', contact:'活動組', phone:'02-8787-1234', tax:'18765432', remark:'待客戶回覆' }
 ];
+
+// 從雲端載入所有報價單，合併到 savedQuotes
+async function loadQuotesFromCloud() {
+  try {
+    const { data, error } = await db
+      .from('quotes')
+      .select('*, quote_items(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    if (!data || data.length === 0) return;
+
+    data.forEach(q => {
+      // 檢查有沒有已存在的（用 quote_no 比對）
+      const existing = savedQuotes.find(s => s.no === q.quote_no);
+      if (existing) {
+        // 更新狀態和金額（雲端最新）
+        existing.status = q.status;
+        existing.amount = q.total_amount || existing.amount;
+        existing.cloud_id = q.id;
+        // 更新品項（如果員工改了）
+        if (q.quote_items && q.quote_items.length > 0) {
+          existing.items = q.quote_items.map(i => ({
+            name: i.item_name,
+            qty: i.quantity,
+            price: i.unit_price
+          }));
+          existing.amount = existing.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+        }
+        if (q.worker_notes) existing.worker_notes = q.worker_notes;
+      } else {
+        // 雲端有但前端沒有 → 新增
+        const date = q.created_at ? q.created_at.slice(5, 10).replace('-', '/') : '';
+        const items = (q.quote_items || []).map(i => ({
+          name: i.item_name,
+          qty: i.quantity,
+          price: i.unit_price
+        }));
+        const amount = items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+        savedQuotes.push({
+          id: 'cloud-' + q.id,
+          cloud_id: q.id,
+          no: q.quote_no,
+          client: q.client_name,
+          tax: q.client_tax_id || '—',
+          contact: q.client_contact || '—',
+          phone: q.client_phone || '—',
+          setupDate: q.setup_date || '—',
+          eventDate: q.event_date_start || '—',
+          items: items,
+          amount: amount || q.total_amount || 0,
+          status: q.status || 'pending',
+          date: date,
+          paymentMethod: q.payment_method || '現金',
+          remark: q.remark || '',
+          worker_notes: q.worker_notes || ''
+        });
+      }
+    });
+
+    console.log(`☁️ 從雲端同步 ${data.length} 筆報價單`);
+  } catch (err) {
+    console.error('載入報價單失敗:', err);
+  }
+}
 
 let photos = [];
 
@@ -2495,6 +2560,7 @@ const statusMap = {
   pending: { label: '待回覆', cls: 'status-pending' },
   accepted: { label: '已成交', cls: 'status-accepted' },
   dispatched: { label: '已派工', cls: 'status-dispatched' },
+  'setup-done': { label: '已搭設', cls: 'status-dispatched' },
   unpaid: { label: '未收款', cls: 'status-unpaid' },
   paid: { label: '已收款', cls: 'status-paid' }
 };
@@ -3598,7 +3664,7 @@ function renderFilterTabs() {
   const counts = {
     all: filtered.length,
     accepted: filtered.filter(q => q.status === 'accepted').length,
-    dispatched: filtered.filter(q => q.status === 'dispatched').length,
+    dispatched: filtered.filter(q => q.status === 'dispatched' || q.status === 'setup-done').length,
     unpaid: filtered.filter(q => q.status === 'unpaid').length,
     pending: filtered.filter(q => q.status === 'pending').length,
     paid: filtered.filter(q => q.status === 'paid').length
@@ -3627,7 +3693,13 @@ function renderQuotesList() {
   list.innerHTML = '';
   let results = savedQuotes;
   if (quoteSearchTerm) results = results.filter(matchesQuoteSearch);
-  if (currentFilter !== 'all') results = results.filter(q => q.status === currentFilter);
+  if (currentFilter !== 'all') {
+    if (currentFilter === 'dispatched') {
+      results = results.filter(q => q.status === 'dispatched' || q.status === 'setup-done');
+    } else {
+      results = results.filter(q => q.status === currentFilter);
+    }
+  }
 
   if (results.length === 0) {
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--ink-faint);font-size:13px;">沒有符合的報價單</div>';
@@ -4015,6 +4087,7 @@ async function init() {
   updateExamplePrices();
   await loadPhotosFromCloud();
   await loadCorrections();
+  await loadQuotesFromCloud();
 
   renderFilterTabs();
   renderQuotesList();
@@ -4112,7 +4185,12 @@ if ('Notification' in window && Notification.permission === 'default') {
 }
 
 // 每 30 秒檢查一次
-setInterval(checkWorkerUpdates, 30000);
+setInterval(async () => {
+  await checkWorkerUpdates();
+  await loadQuotesFromCloud();
+  renderFilterTabs();
+  renderQuotesList();
+}, 30000);
 
 </script>
 </body>

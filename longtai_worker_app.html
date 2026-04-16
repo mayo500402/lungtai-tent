@@ -5,33 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#2a4564">
-<title>隆泰帳篷 · 施工員</title>
+<meta name="theme-color" content="#1a1a1a">
+<title>隆泰帳篷 · 報價簿</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- html2canvas for generating image -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- jsPDF for PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Supabase client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 :root {
-  --bg: #f0ebe0;
-  --bg-card: #fffdf7;
+  --bg: #f5f1ea;
+  --bg-card: #fffef9;
   --ink: #1a1614;
-  --ink-soft: #5f564e;
-  --ink-faint: #9b9389;
-  --line: #d6ccbb;
-  --line-soft: #e5dcc8;
-  --worker: #2a4564;        /* 員工主色 - 深藍（與老闆端紅色區隔） */
-  --worker-soft: #d5dde8;
-  --worker-light: #e8eef5;
-  --amber: #c08037;
-  --amber-soft: #f7e4c9;
+  --ink-soft: #6b625a;
+  --ink-faint: #a8a096;
+  --line: #e0d9cc;
+  --line-soft: #ebe5d8;
+  --accent: #c73e1d;
+  --accent-soft: #e8d4c8;
+  --gold: #8b6f47;
   --green: #4a6741;
   --green-soft: #dde5d3;
-  --alert: #c73e1d;
-  --shadow: 0 1px 2px rgba(26,22,20,0.04), 0 4px 12px rgba(26,22,20,0.06);
-  --shadow-lg: 0 2px 6px rgba(26,22,20,0.06), 0 12px 28px rgba(26,22,20,0.1);
+  --blue: #2a4564;
+  --blue-soft: #d5dde8;
+  --line-green: #06C755;
+  --paper-shadow: 0 1px 2px rgba(26,22,20,0.04), 0 4px 12px rgba(26,22,20,0.06);
+  --paper-shadow-lg: 0 2px 6px rgba(26,22,20,0.06), 0 12px 32px rgba(26,22,20,0.08);
 }
 
 html, body {
@@ -39,15 +44,15 @@ html, body {
   background: var(--bg);
   color: var(--ink);
   font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(42,69,100,0.04) 0%, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(192,128,55,0.04) 0%, transparent 50%);
+  background-image:
+    radial-gradient(at 20% 0%, rgba(199,62,29,0.03) 0%, transparent 50%),
+    radial-gradient(at 80% 100%, rgba(139,111,71,0.04) 0%, transparent 50%);
   min-height: 100vh;
 }
 
@@ -56,369 +61,174 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto;
   background: var(--bg);
-  position: relative;
 }
 
-/* HEADER - 員工版跟老闆版不同 */
+@media (min-width: 900px) {
+  .app { max-width: 1100px; flex-direction: row; }
+}
+
+/* HEADER */
 .header {
-  padding: 18px 20px 16px;
-  background: var(--worker);
-  color: #fff;
+  padding: 20px 24px 16px;
+  border-bottom: 0.5px solid var(--line);
+  background: var(--bg-card);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 1px 8px rgba(0,0,0,0.1);
 }
 
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
+@media (min-width: 900px) { .header { display: none; } }
 
-.brand {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
+.brand { display: flex; flex-direction: column; gap: 0; }
 .brand-mark {
   font-family: 'Fraunces', serif;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 500;
-  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
-
-.brand-tag {
+.brand-sub {
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
-  color: rgba(255,255,255,0.6);
+  color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  padding: 2px 6px;
-  border: 0.5px solid rgba(255,255,255,0.3);
-  border-radius: 4px;
+  margin-top: 2px;
 }
 
-.user-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.85);
-}
+.user-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-soft); }
+.user-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
 
-.user-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #7ed598;
-  box-shadow: 0 0 0 2px rgba(126,213,152,0.25);
-}
-
-.header-date {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.55);
-  letter-spacing: 0.1em;
-}
-
-/* TAB NAV */
-.tabs {
+/* NAV */
+.nav {
   display: flex;
   background: var(--bg-card);
   border-bottom: 0.5px solid var(--line);
-  padding: 0;
+  padding: 0 2px;
   flex-shrink: 0;
   position: sticky;
-  top: 73px;
+  top: 71px;
   z-index: 9;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.tab {
-  flex: 1;
+@media (min-width: 900px) {
+  .nav {
+    flex-direction: column;
+    width: 240px;
+    border-bottom: none;
+    border-right: 0.5px solid var(--line);
+    padding: 32px 16px;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-x: visible;
+  }
+  .nav::before {
+    content: '隆泰帳篷';
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    padding: 0 16px 4px;
+    display: block;
+  }
+  .nav::after {
+    content: 'Longtai · Tent Rental';
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0 16px 20px;
+    display: block;
+    border-bottom: 0.5px solid var(--line);
+    margin-bottom: 16px;
+  }
+}
+
+.nav-btn {
+  flex: 1 0 auto;
   background: none;
   border: none;
-  padding: 13px 4px;
+  padding: 12px 10px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ink-soft);
   cursor: pointer;
   position: relative;
-  font-weight: 500;
-  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
-.tab-count {
-  display: inline-block;
-  background: var(--line);
-  color: var(--ink-soft);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  margin-left: 4px;
-  font-weight: 500;
+@media (min-width: 900px) {
+  .nav-btn { justify-content: flex-start; padding: 12px 16px; border-radius: 8px; font-size: 14px; gap: 8px; }
+  .nav-btn:hover { background: var(--line-soft); }
 }
 
-.tab.active {
-  color: var(--worker);
-}
+.nav-btn.active { color: var(--ink); font-weight: 500; }
 
-.tab.active .tab-count {
-  background: var(--worker);
-  color: #fff;
-}
-
-.tab.active::after {
+.nav-btn.active::after {
   content: '';
   position: absolute;
-  bottom: -0.5px;
-  left: 25%; right: 25%;
-  height: 2.5px;
-  background: var(--worker);
-  border-radius: 2px;
+  bottom: 0;
+  left: 15%; right: 15%;
+  height: 2px;
+  background: var(--accent);
 }
 
-/* MAIN */
-.main {
-  flex: 1;
-  padding: 18px 16px 80px;
+@media (min-width: 900px) {
+  .nav-btn.active { background: var(--accent); color: white; }
+  .nav-btn.active::after { display: none; }
 }
+
+.nav-icon { font-size: 13px; }
+
+/* MAIN */
+.main { flex: 1; padding: 20px 18px 80px; min-width: 0; }
+@media (min-width: 900px) { .main { padding: 40px 48px; } }
 
 .page { display: none; }
 .page.active { display: block; animation: fadeIn 0.3s ease-out; }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
 }
 
 .page-title {
   font-family: 'Fraunces', serif;
-  font-size: 24px;
-  font-weight: 500;
-  margin-bottom: 2px;
-  letter-spacing: -0.01em;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
 }
 
 .page-sub {
   font-size: 12px;
   color: var(--ink-soft);
-  margin-bottom: 18px;
+  margin-bottom: 22px;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.05em;
 }
 
-/* TODAY ALERT */
-.today-alert {
-  background: var(--amber-soft);
-  border: 0.5px solid #e8c98a;
-  border-left: 4px solid var(--amber);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-
-.today-alert-title {
-  font-weight: 600;
-  color: #7a5019;
-  font-size: 14px;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.today-alert-body {
-  font-size: 12px;
-  color: var(--ink-soft);
-}
-
-/* ORDER CARD */
-.order-card {
-  background: var(--bg-card);
-  border: 0.5px solid var(--line);
-  border-radius: 14px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  transition: transform 0.15s, box-shadow 0.15s;
-  cursor: pointer;
-}
-
-.order-card:active {
-  transform: scale(0.99);
-}
-
-.order-card.urgent {
-  border-left: 4px solid var(--alert);
-}
-
-.order-card.ongoing {
-  border-left: 4px solid var(--amber);
-}
-
-.order-card.done {
-  border-left: 4px solid var(--green);
-  opacity: 0.88;
-}
-
-.order-card-top {
-  padding: 14px 16px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.order-card-client {
-  font-family: 'Fraunces', serif;
-  font-size: 19px;
-  font-weight: 500;
-  line-height: 1.25;
-  color: var(--ink);
-}
-
-.order-card-status {
-  font-size: 10px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  white-space: nowrap;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.status-pending-setup { background: var(--amber-soft); color: #7a5019; }
-.status-in-setup { background: var(--worker-soft); color: var(--worker); }
-.status-pending-teardown { background: #f7e4d8; color: #9b4a1e; }
-.status-done { background: var(--green-soft); color: #2a5240; }
-
-.order-card-info {
-  padding: 0 16px 10px;
-  display: grid;
-  gap: 6px;
-}
-
-.info-row {
-  display: grid;
-  grid-template-columns: 22px 1fr;
-  gap: 8px;
-  font-size: 13px;
-  align-items: start;
-  line-height: 1.5;
-}
-
-.info-icon {
-  color: var(--ink-faint);
-  font-size: 13px;
-  margin-top: 1px;
-}
-
-.info-text {
-  color: var(--ink);
-  word-break: break-word;
-}
-
-.info-text .label {
-  color: var(--ink-faint);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  margin-right: 6px;
-}
-
-.info-text .phone-link {
-  color: var(--worker);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.order-card-dates {
-  padding: 10px 16px;
-  background: #fbf7ec;
-  border-top: 0.5px solid var(--line-soft);
-  border-bottom: 0.5px solid var(--line-soft);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.date-chunk {
-  text-align: center;
-}
-
-.date-chunk-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  color: var(--ink-faint);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-
-.date-chunk-value {
-  font-family: 'Fraunces', serif;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--ink);
-}
-
-.date-chunk-value.tomorrow { color: var(--alert); }
-.date-chunk-value.today { color: var(--amber); }
-
-.order-card-actions {
-  padding: 12px 14px;
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn {
-  flex: 1;
-  padding: 11px 12px;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.action-btn-main {
-  background: var(--worker);
-  color: #fff;
-}
-.action-btn-main:active { background: #1e3450; }
-
-.action-btn-success {
-  background: var(--green);
-  color: #fff;
-}
-.action-btn-success:active { background: #3a5333; }
-
-.action-btn-sec {
-  background: var(--bg);
-  color: var(--ink);
-  border: 0.5px solid var(--line);
-}
-
-/* DETAIL VIEW */
-.back-row {
-  margin-bottom: 14px;
-}
+.back-row { margin-bottom: 14px; }
 
 .back-btn {
   background: var(--bg-card);
@@ -429,1724 +239,3958 @@ body {
   color: var(--ink-soft);
   cursor: pointer;
   font-family: inherit;
-  font-weight: 500;
 }
 
-.detail-header {
+/* ===== SEARCH BAR ===== */
+.search-bar { position: relative; margin-bottom: 14px; }
+
+.search-input {
+  width: 100%;
+  padding: 11px 14px 11px 38px;
   background: var(--bg-card);
-  border-radius: 14px;
-  padding: 18px 18px 16px;
-  margin-bottom: 12px;
   border: 0.5px solid var(--line);
-  box-shadow: var(--shadow);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
 }
 
-.detail-client {
-  font-family: 'Fraunces', serif;
-  font-size: 26px;
-  font-weight: 500;
-  line-height: 1.2;
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(199,62,29,0.08);
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  color: var(--ink-faint);
+}
+
+.search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--line);
+  color: var(--ink-soft);
+  border: none;
+  border-radius: 50%;
+  width: 20px; height: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-clear.visible { display: flex; }
+
+/* ===== VOICE CARD ===== */
+.voice-card {
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 24px 18px;
+  text-align: center;
+  box-shadow: var(--paper-shadow-lg);
+  border: 0.5px solid var(--line);
+  margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--gold));
+}
+
+.mic-btn {
+  width: 82px; height: 82px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: none;
+  color: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 8px 24px rgba(26,22,20,0.2);
+}
+.mic-btn:active { transform: scale(0.95); }
+.mic-btn.recording { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(199,62,29,0.3), 0 0 0 0 rgba(199,62,29,0.4); }
+  50% { box-shadow: 0 8px 24px rgba(199,62,29,0.3), 0 0 0 20px rgba(199,62,29,0); }
+}
+
+.mic-icon { width: 30px; height: 30px; }
+.voice-hint { font-size: 14px; color: var(--ink-soft); margin-bottom: 8px; }
+.voice-hint-eg { font-size: 11px; color: var(--ink-faint); font-style: italic; line-height: 1.5; }
+
+.library-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #fef8e8;
+  border: 0.5px solid #e8c98a;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #8b6f00;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.library-note strong { color: #5c4800; }
+
+.transcript {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--line-soft);
+  border-radius: 10px;
+  font-size: 13px;
+  text-align: left;
+  border-left: 3px solid var(--accent);
+  display: none;
+}
+.transcript.visible { display: block; }
+
+.transcript-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
   margin-bottom: 4px;
 }
 
-.detail-order-no {
+.processing {
+  display: none;
+  text-align: center;
+  padding: 14px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--ink-faint);
-  letter-spacing: 0.05em;
-  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.processing.visible { display: block; }
+.processing-dots::after { content: ''; animation: dots 1.2s steps(4, end) infinite; }
+@keyframes dots {
+  0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; }
 }
 
-.detail-section {
+.examples { display: grid; gap: 8px; margin-bottom: 18px; }
+
+.example-chip {
   background: var(--bg-card);
-  border-radius: 14px;
-  padding: 16px 18px;
-  margin-bottom: 12px;
   border: 0.5px solid var(--line);
-}
-
-.detail-section-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--ink-faint);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.detail-info-grid {
-  display: grid;
-  gap: 10px;
-}
-
-.detail-field {
-  display: grid;
-  grid-template-columns: 60px 1fr;
-  gap: 10px;
-  font-size: 14px;
-  align-items: baseline;
-}
-
-.detail-field-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--ink-faint);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding-top: 2px;
-}
-
-.detail-field-value {
-  color: var(--ink);
-  font-weight: 500;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
   line-height: 1.5;
 }
+.example-chip:hover { border-color: var(--accent); color: var(--ink); }
 
-.detail-field-value a {
-  color: var(--worker);
-  text-decoration: none;
+.example-chip-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-faint);
+  margin-bottom: 3px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
-/* Item list (no prices) */
-.item-list {
-  display: grid;
-  gap: 10px;
+/* ===== QUOTE DOCUMENT ===== */
+.quote-doc {
+  background: var(--bg-card);
+  border-radius: 14px;
+  box-shadow: var(--paper-shadow-lg);
+  border: 0.5px solid var(--line);
+  margin-bottom: 16px;
+  display: none;
+  overflow: hidden;
+}
+.quote-doc.visible { display: block; }
+
+.quote-doc-header {
+  padding: 22px 18px 16px;
+  background: var(--ink);
+  color: var(--bg-card);
+  position: relative;
 }
 
-.item-line {
-  padding: 11px 12px;
-  background: var(--worker-light);
-  border-radius: 10px;
+.quote-doc-header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--gold));
+}
+
+.quote-doc-title {
+  font-family: 'Fraunces', serif;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.quote-doc-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: rgba(255,254,249,0.6);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.quote-doc-no {
+  position: absolute;
+  top: 22px;
+  right: 18px;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,254,249,0.7);
+  line-height: 1.8;
+}
+
+.internal-bar {
+  padding: 10px 14px;
+  background: #2a2420;
+  color: #d0c9b8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-left: 3px solid var(--worker);
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.item-line-name {
-  font-size: 14px;
-  font-weight: 600;
+.internal-bar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.internal-bar-label { font-size: 10px; color: #8a8578; }
+.internal-bar-hint { font-size: 9px; color: #6a655a; }
+
+.pay-toggle { display: inline-flex; background: #1a1614; border-radius: 20px; padding: 2px; }
+
+.pay-toggle-btn {
+  background: none;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 18px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: #6a655a;
+  cursor: pointer;
+}
+
+.pay-toggle-btn.active.cash { background: var(--green); color: #fff; }
+.pay-toggle-btn.active.transfer { background: var(--blue); color: #fff; }
+
+.quote-doc-body { padding: 18px; }
+
+.party-grid { display: grid; gap: 12px; margin-bottom: 18px; }
+@media (min-width: 600px) { .party-grid { grid-template-columns: 1fr 1fr; } }
+
+.party-card {
+  background: var(--line-soft);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.party-card.us { background: #f0ebe0; border-left: 3px solid var(--gold); }
+.party-card.them { background: #f9ede7; border-left: 3px solid var(--accent); }
+
+.party-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+
+.party-name {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  line-height: 1.3;
+}
+
+.party-field {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 2px;
+}
+
+.party-field-label {
+  color: var(--ink-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+
+.party-field-value { color: var(--ink); word-break: break-all; }
+
+.event-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #fdf6e8;
+  border: 0.5px solid #e8d4a0;
+  border-radius: 10px;
+}
+
+.event-date-item { text-align: center; }
+
+.event-date-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: #8b6f47;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.event-date-value {
+  font-family: 'Fraunces', serif;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--ink);
 }
 
-.item-line-qty {
+.validity-note {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #f0ebe0;
+  border-radius: 8px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--worker);
-  background: #fff;
-  padding: 3px 12px;
-  border-radius: 14px;
-  min-width: 54px;
-  text-align: center;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.validity-icon { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+
+.divider-labeled {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.divider-labeled::before, .divider-labeled::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: var(--line);
 }
 
-/* Remark for worker */
-.worker-remark {
+.items-wrap { margin-bottom: 14px; }
+
+.item-row {
+  padding: 12px 0;
+  border-bottom: 0.5px dashed var(--line);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+}
+
+.item-name {
+  font-size: 14px;
+  font-weight: 500;
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+}
+
+.item-detail {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.item-subtotal {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: right;
+  align-self: center;
+}
+
+.totals-box {
+  background: var(--line-soft);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 3px 0;
+}
+
+.totals-row.grand {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+  padding-top: 10px;
+  margin-top: 8px;
+  border-top: 1px solid var(--ink);
+}
+
+.totals-row.grand .amount { color: var(--accent); }
+
+.payment-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.payment-box { padding: 12px 14px; border-radius: 10px; text-align: center; }
+.payment-box.deposit { background: #dde5d3; }
+.payment-box.balance { background: #e8d4c8; }
+
+.payment-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.payment-box.deposit .payment-label { color: #3a4f31; }
+.payment-box.balance .payment-label { color: #8b4520; }
+
+.payment-amount { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500; }
+.payment-box.deposit .payment-amount { color: #2a3a23; }
+.payment-box.balance .payment-amount { color: #6b2e12; }
+
+.payment-note { font-size: 10px; color: var(--ink-soft); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+
+.remark-block {
+  margin-top: 18px;
+  padding: 14px 16px;
   background: #fffbf0;
   border: 0.5px solid #e8d98a;
   border-left: 3px solid #c0a030;
   border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 1.65;
-  white-space: pre-wrap;
 }
 
-/* PHOTO UPLOAD for this order */
-.photo-upload-area {
-  margin-top: 6px;
-}
-
-.photo-upload-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.photo-upload-btn {
-  flex: 1;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1.5px dashed var(--line);
-  background: var(--bg-card);
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--ink-soft);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: all 0.15s;
-  font-weight: 500;
-}
-
-.photo-upload-btn:active {
-  background: var(--worker-light);
-  border-color: var(--worker);
-  color: var(--worker);
-}
-
-.photo-upload-btn.final {
-  background: var(--green-soft);
-  border: 1.5px solid var(--green);
-  border-style: solid;
-  color: var(--green);
-  font-weight: 600;
-}
-
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.photo-thumb {
-  aspect-ratio: 1;
-  background: linear-gradient(135deg, var(--line-soft), #c4b9a2);
-  border-radius: 8px;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.photo-thumb svg {
-  width: 60%; height: 60%;
-  opacity: 0.4;
-}
-
-.photo-thumb-badge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(255,255,255,0.95);
-  color: var(--ink);
+.remark-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
-  padding: 1px 6px;
-  border-radius: 8px;
+  color: #8b6f00;
+  margin-bottom: 6px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.remark-content { font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+.remark-content.empty { color: var(--ink-faint); font-style: italic; }
+
+.client-sig-block {
+  margin-top: 20px;
+  padding: 16px;
+  border: 0.5px dashed var(--accent);
+  border-radius: 10px;
+  background: #fff8f5;
+}
+
+.client-sig-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.client-sig-hint { font-size: 11px; color: var(--ink-soft); margin-bottom: 18px; font-style: italic; }
+
+.client-sig-line {
+  border-bottom: 1px solid var(--ink);
+  height: 40px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.client-sig-line::after {
+  content: '客戶簽名 Signature';
+  position: absolute;
+  bottom: -16px;
+  left: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+.client-sig-extras {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.client-sig-mini { border-bottom: 0.5px solid var(--ink); height: 22px; position: relative; }
+.client-sig-mini::after {
+  position: absolute;
+  bottom: -14px;
+  left: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-faint);
+}
+
+.client-sig-mini.date::after { content: '日期 Date'; }
+.client-sig-mini.seal::after { content: '客戶公司章 Seal'; }
+
+.quote-actions {
+  display: flex;
+  gap: 8px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border-top: 0.5px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary { background: var(--ink); color: var(--bg-card); }
+.btn-secondary { background: transparent; color: var(--ink); border: 0.5px solid var(--line); }
+.btn-success { background: var(--green); color: var(--bg-card); }
+.btn-line { background: var(--line-green); color: #fff; }
+
+/* LINE send section */
+.line-send-section {
+  padding: 14px 18px;
+  background: #f0f9f0;
+  border-top: 0.5px solid var(--line);
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+
+.line-send-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #2c7a39;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.line-logo {
+  width: 14px;
+  height: 14px;
+  background: var(--line-green);
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.line-send-row { display: flex; gap: 8px; }
+
+.btn-line-big {
+  flex: 1;
+  padding: 13px;
+  border-radius: 10px;
+  background: var(--line-green);
+  color: #fff;
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-line-big:active { background: #05a848; }
+
+/* ===== QUOTE LIST ===== */
+.filter-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.filter-tab {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.filter-tab.active { background: var(--ink); color: var(--bg-card); border-color: var(--ink); }
+
+.filter-tab-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+.quote-item {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.quote-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.quote-item-client {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
   font-weight: 500;
 }
 
-.photo-thumb.is-final {
-  border: 2.5px solid var(--green);
+.quote-item-amount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
 }
 
-.photo-thumb.is-final::after {
-  content: '✓ 完成';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: var(--green);
-  color: #fff;
-  font-family: 'Noto Sans TC', sans-serif;
+.quote-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--ink-faint);
+  gap: 8px;
+}
+
+.status-pill {
   font-size: 10px;
-  padding: 2px 4px;
-  text-align: center;
-  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.photo-note-editor {
+.status-pending { background: #faecd7; color: #8b5d1c; }
+.status-accepted { background: #dde5d3; color: #3a4f31; }
+.status-dispatched { background: #d5dde8; color: #2a4564; }
+.status-unpaid { background: #fde2dc; color: #a3391e; }
+.status-paid { background: #d5e3db; color: #2a5240; }
+
+.quote-item-action {
   margin-top: 10px;
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 12px;
+  padding-top: 10px;
+  border-top: 0.5px dashed var(--line);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
 }
 
-.photo-note-editor label {
+.quote-item-action-hint { font-size: 11px; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+.quote-item-action-hint.dispatch { color: var(--blue); }
+.quote-item-action-hint.dispatched { color: var(--green); }
+
+.btn-mini {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-mini-confirm { background: var(--green); color: var(--bg-card); }
+.btn-mini-dispatch { background: var(--blue); color: var(--bg-card); }
+.btn-mini-line { background: var(--line-green); color: #fff; display: inline-flex; align-items: center; gap: 4px; }
+
+.payment-method-tag {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #ebe5d8;
+}
+.payment-method-tag.cash { background: #dde5d3; color: #3a4f31; }
+.payment-method-tag.transfer { background: #d5dde8; color: #2a4564; }
+
+/* ===== LEDGER ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.stat-card.highlight {
+  background: var(--ink);
+  color: var(--bg-card);
+  grid-column: span 2;
+}
+.stat-card.highlight .stat-label { color: var(--ink-faint); }
+
+.stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.stat-card.highlight .stat-value { font-size: 32px; }
+
+.stat-delta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--green); margin-top: 4px; }
+.stat-delta.negative { color: var(--accent); }
+
+.section-heading {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 500;
+  margin: 24px 0 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.section-heading-side {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   color: var(--ink-faint);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  display: block;
-  margin-bottom: 6px;
+  font-weight: 400;
 }
 
-.photo-note-editor textarea {
-  width: 100%;
-  min-height: 70px;
-  padding: 10px 12px;
+.alert {
+  background: #fef3e8;
+  border: 0.5px solid #f2c594;
+  border-left: 3px solid #c08037;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+.alert-title { font-weight: 500; color: #8b5d1c; }
+.alert-body { color: var(--ink-soft); font-size: 12px; }
+
+/* ===== PHOTOS ===== */
+.photo-grouping-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  background: var(--bg-card);
   border: 0.5px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.photo-group-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 7px;
+}
+
+.photo-group-btn.active { background: var(--ink); color: var(--bg-card); font-weight: 500; }
+
+.photo-section-title {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 500;
+  margin: 20px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 0.5px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.photo-section-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); font-weight: 400; }
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (min-width: 600px) { .photo-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.photo-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.photo-thumb {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: linear-gradient(135deg, var(--line-soft), #d4ccbd);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.photo-thumb svg { width: 60%; height: 60%; opacity: 0.5; }
+
+.photo-badge {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: rgba(26,22,20,0.85);
+  color: var(--bg-card);
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.photo-info { padding: 10px 12px; }
+.photo-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+.photo-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); }
+
+.upload-btn {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1.5px dashed var(--line);
+  border-radius: 14px;
+  padding: 18px;
   font-family: inherit;
   font-size: 13px;
-  color: var(--ink);
-  background: var(--bg-card);
-  resize: vertical;
-  line-height: 1.55;
-}
-
-.photo-note-editor textarea:focus {
-  outline: none;
-  border-color: var(--worker);
-  box-shadow: 0 0 0 3px rgba(42,69,100,0.1);
-}
-
-/* BIG ACTION (bottom) */
-.big-action-container {
-  margin: 18px 0 10px;
-}
-
-.big-action {
-  width: 100%;
-  padding: 16px;
-  border-radius: 14px;
-  border: none;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 600;
+  color: var(--ink-soft);
   cursor: pointer;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: transform 0.1s;
 }
 
-.big-action:active { transform: scale(0.98); }
+/* ===== ITEM LIBRARY ===== */
+.library-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+  gap: 10px;
+}
 
-.big-action.primary {
-  background: var(--worker);
+.library-add-btn {
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--accent);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(42,69,100,0.25);
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
 }
 
-.big-action.success {
-  background: var(--green);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(74,103,65,0.25);
+.library-filter {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.big-action.alert {
-  background: var(--alert);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(199,62,29,0.25);
+.library-filter-tab {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
 }
 
-.big-action-hint {
-  text-align: center;
-  font-size: 11px;
-  color: var(--ink-faint);
-  margin-top: 8px;
+.library-filter-tab.active { background: var(--ink); color: var(--bg-card); border-color: var(--ink); }
+
+.library-group-head {
   font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.05em;
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin: 18px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 0.5px solid var(--line);
+  display: flex;
+  justify-content: space-between;
 }
 
-/* MODAL */
+.library-group-head:first-of-type { margin-top: 0; }
+
+.library-item {
+  background: var(--bg-card);
+  border: 0.5px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.library-item-name { font-size: 14px; font-weight: 500; }
+.library-item-name.special { color: var(--accent); }
+
+.library-item-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent);
+  min-width: 70px;
+  text-align: right;
+}
+
+.library-item-price.zero { color: var(--ink-faint); }
+.library-item-price.negative { color: var(--green); }
+
+.library-item-edit {
+  background: none;
+  border: 0.5px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink-soft);
+}
+
+.library-item-edit:hover { border-color: var(--accent); color: var(--accent); }
+
+.library-edit-row {
+  background: var(--line-soft);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 6px;
+  display: grid;
+  gap: 10px;
+}
+
+.library-edit-row input {
+  padding: 8px 12px;
+  border: 0.5px solid var(--line);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--bg-card);
+}
+
+.library-edit-row input:focus { outline: none; border-color: var(--accent); }
+
+.library-edit-actions { display: flex; gap: 8px; }
+.library-edit-actions button {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+/* Modal */
 .modal-backdrop {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(26,22,20,0.65);
+  background: rgba(26,22,20,0.7);
   z-index: 100;
   padding: 20px;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  animation: fadeIn 0.2s;
 }
+.modal-backdrop.visible { display: flex; align-items: center; justify-content: center; }
 
-.modal-backdrop.visible {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-box {
+.modal-content {
   background: var(--bg-card);
-  border-radius: 16px;
-  max-width: 400px;
+  border-radius: 14px;
+  max-width: 440px;
   width: 100%;
-  padding: 24px 22px;
-  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 
-.modal-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--green-soft);
-  color: var(--green);
-  display: flex;
-  align-items: center;
+.modal-header {
+  padding: 18px 20px 14px;
+  border-bottom: 0.5px solid var(--line);
+}
+
+.modal-title-h { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; }
+.modal-sub-h { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+.modal-body { padding: 18px 20px; }
+
+.modal-close-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--ink);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 14px;
+}
+
+/* Share sheet */
+.share-sheet {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(26,22,20,0.6);
+  z-index: 100;
+  align-items: flex-end;
   justify-content: center;
-  margin: 0 auto 14px;
-  font-size: 26px;
+  padding: 20px;
+}
+.share-sheet.visible { display: flex; }
+
+.share-sheet-content {
+  background: var(--bg-card);
+  border-radius: 20px;
+  max-width: 500px;
+  width: 100%;
+  overflow: hidden;
+  padding: 20px;
+  animation: slideUp 0.25s ease-out;
 }
 
-.modal-title {
+@keyframes slideUp {
+  from { transform: translateY(100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.share-sheet-title {
   font-family: 'Fraunces', serif;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 500;
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
-.modal-sub {
-  text-align: center;
-  font-size: 13px;
+.share-sheet-sub {
+  font-size: 12px;
   color: var(--ink-soft);
+  text-align: center;
   margin-bottom: 18px;
 }
 
-.date-picker-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.date-picker-option {
-  padding: 12px 8px;
+.share-option {
+  width: 100%;
+  padding: 14px 16px;
   background: var(--bg);
   border: 0.5px solid var(--line);
   border-radius: 10px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   cursor: pointer;
-  text-align: center;
-  transition: all 0.1s;
+  font-family: inherit;
+  text-align: left;
 }
 
-.date-picker-option.selected {
-  background: var(--worker);
-  border-color: var(--worker);
+.share-option:active { background: var(--line-soft); }
+
+.share-option-icon {
+  width: 40px; height: 40px;
+  background: var(--line-green);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
-.date-picker-option-day {
-  font-family: 'Fraunces', serif;
-  font-size: 20px;
-  font-weight: 500;
-  display: block;
-  margin-bottom: 2px;
-}
+.share-option-icon.pdf { background: var(--accent); }
+.share-option-icon.img { background: var(--gold); }
 
-.date-picker-option-week {
-  font-size: 11px;
-  opacity: 0.7;
-}
+.share-option-text { flex: 1; }
+.share-option-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.share-option-desc { font-size: 11px; color: var(--ink-soft); line-height: 1.4; }
 
-.custom-date {
+.share-cancel {
   width: 100%;
   padding: 12px;
+  background: transparent;
   border: 0.5px solid var(--line);
   border-radius: 10px;
-  font-family: inherit;
-  font-size: 14px;
-  margin-bottom: 16px;
-  background: var(--bg);
-}
-
-.modal-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.modal-actions button {
-  flex: 1;
-  padding: 12px;
-  border-radius: 10px;
+  margin-top: 8px;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 600;
-  border: none;
   cursor: pointer;
-}
-
-.modal-btn-primary {
-  background: var(--worker);
-  color: #fff;
-}
-
-.modal-btn-sec {
-  background: var(--bg);
-  color: var(--ink);
-  border: 0.5px solid var(--line);
-}
-
-/* EMPTY STATE */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.empty-icon {
-  font-family: 'Fraunces', serif;
-  font-size: 48px;
-  color: var(--line);
-  margin-bottom: 12px;
-  line-height: 1;
-}
-
-.empty-text {
-  font-size: 14px;
-  color: var(--ink-faint);
-  margin-bottom: 6px;
-}
-
-.empty-sub {
-  font-size: 12px;
-  color: var(--ink-faint);
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.05em;
-}
-
-/* HISTORY */
-.history-item {
-  background: var(--bg-card);
-  border: 0.5px solid var(--line);
-  border-left: 3px solid var(--green);
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  cursor: pointer;
-}
-
-.history-item:active { transform: scale(0.99); }
-
-.history-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 4px;
-  gap: 10px;
-}
-
-.history-client {
-  font-family: 'Fraunces', serif;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.history-date {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--ink-faint);
-}
-
-.history-meta {
-  font-size: 11px;
   color: var(--ink-soft);
-  font-family: 'JetBrains Mono', monospace;
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
+
+.share-status {
+  background: #f0f9f0;
+  color: #2c7a39;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 12px;
+  display: none;
+}
+
+.share-status.visible { display: block; }
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 
-</style>
-<style>
-/* 下拉重新整理 */
-.pull-refresh {
-  text-align: center;
-  padding: 12px;
-  font-size: 13px;
-  color: var(--worker);
+/* ===== CLOUD SYNC INDICATOR ===== */
+.sync-indicator {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 200;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s;
+  pointer-events: none;
+}
+
+.sync-indicator.syncing {
+  background: rgba(139, 111, 71, 0.15);
+  color: #6b4e2a;
+  border: 0.5px solid rgba(139, 111, 71, 0.3);
+}
+
+.sync-indicator.synced {
+  background: rgba(74, 103, 65, 0.15);
+  color: #2a5240;
+  border: 0.5px solid rgba(74, 103, 65, 0.3);
+}
+
+.sync-indicator.error {
+  background: rgba(199, 62, 29, 0.15);
+  color: #8b3015;
+  border: 0.5px solid rgba(199, 62, 29, 0.3);
+}
+
+.sync-indicator.offline {
+  background: rgba(107, 98, 90, 0.15);
+  color: var(--ink-soft);
+  border: 0.5px solid var(--line);
+}
+
+.sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.sync-indicator.syncing .sync-dot {
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  transition: opacity 0.3s;
+}
+
+.loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+  letter-spacing: 0.1em;
+}
+
+.loading-title {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+/* hidden canvas for html2canvas */
+.capture-clone {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 720px;
+}
+
+/* ===== EDITABLE FIELDS ===== */
+.editable {
+  cursor: text;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background 0.15s;
+  position: relative;
+  display: inline-block;
+  min-width: 20px;
+}
+
+.editable:hover {
+  background: #fef8e8;
+  box-shadow: inset 0 0 0 1px #e8c98a;
+}
+
+.editable:focus {
+  outline: none;
+  background: #fff8e0;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.editable.empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.edit-mode-hint {
+  background: #fef8e8;
+  border: 0.5px solid #e8c98a;
+  border-left: 3px solid #c0a030;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #7a5019;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.edit-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--ink);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.edit-mode-toggle.active {
+  background: var(--accent);
+}
+
+.edit-mode-toggle.active::before {
+  content: '✏';
+  margin-right: 4px;
+}
+
+/* Editable item rows */
+.item-row.editing {
+  background: #fef8e8;
+  padding: 12px;
+  border-radius: 8px;
+  border: 0.5px solid #e8c98a;
+  margin-bottom: 8px;
+}
+
+.item-row-edit {
+  display: grid;
+  grid-template-columns: 1fr 60px 80px 30px;
+  gap: 6px;
+  align-items: center;
+}
+
+.item-row-edit input {
+  padding: 6px 8px;
+  border: 0.5px solid var(--line);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  background: #fff;
+  min-width: 0;
+}
+
+.item-row-edit input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(199,62,29,0.1);
+}
+
+.item-row-edit input.qty, .item-row-edit input.price {
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+}
+
+.item-row-delete {
+  background: #fde2dc;
+  color: #a3391e;
+  border: none;
+  border-radius: 50%;
+  width: 24px; height: 24px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.item-row-delete:hover { background: #f5c7bd; }
+
+.add-item-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.add-item-btn {
+  flex: 1;
+  padding: 10px;
+  background: var(--bg);
+  border: 1.5px dashed var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.add-item-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #fff8f5;
+}
+
+/* Autocomplete dropdown for item name */
+.item-autocomplete {
+  position: absolute;
+  background: #fff;
+  border: 0.5px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--paper-shadow-lg);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 50;
+  min-width: 180px;
   display: none;
 }
-.pull-refresh.visible { display: block; }
-.pull-refresh.loading { color: var(--ink-faint); }
+
+.item-autocomplete.visible { display: block; }
+
+.item-autocomplete-option {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 0.5px solid var(--line-soft);
+}
+
+.item-autocomplete-option:last-child { border-bottom: none; }
+.item-autocomplete-option:hover { background: var(--line-soft); }
+
+.item-autocomplete-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  margin-left: 12px;
+}
+
 </style>
 </head>
 <body>
 
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-title">隆泰帳篷</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">連接雲端資料庫中...</div>
+</div>
+
+<!-- Cloud sync indicator -->
+<div class="sync-indicator syncing" id="syncIndicator">
+  <span class="sync-dot"></span>
+  <span id="syncText">連線中</span>
+</div>
+
 <div class="app">
 
-  <header class="header">
-    <div class="header-top">
-      <div class="brand">
-        <div class="brand-mark">隆泰帳篷</div>
-        <div class="brand-tag">施工員</div>
-      </div>
-      <div class="user-badge">
-        <span class="user-dot"></span>
-        <span id="workerName">嘉豐</span>
-      </div>
+  <div class="header">
+    <div class="brand">
+      <div class="brand-mark">隆泰帳篷</div>
+      <div class="brand-sub">Longtai · Quote Book</div>
     </div>
-    <div class="header-date" id="todayDate">Today · 2026/04/16 · 週四</div>
-  </header>
+    <div class="user-badge">
+      <span class="user-dot"></span>
+      <span>康博凱</span>
+    </div>
+  </div>
 
-  <nav class="tabs">
-    <button class="tab active" data-tab="setup">
-      要搭設<span class="tab-count" id="countSetup">2</span>
+  <nav class="nav">
+    <button class="nav-btn active" data-page="voice">
+      <span class="nav-icon">◉</span><span>語音開單</span>
     </button>
-    <button class="tab" data-tab="teardown">
-      待拆除<span class="tab-count" id="countTeardown">1</span>
+    <button class="nav-btn" data-page="quotes">
+      <span class="nav-icon">❚❚</span><span>報價列表</span>
     </button>
-    <button class="tab" data-tab="history">
-      已完成<span class="tab-count" id="countHistory">3</span>
+    <button class="nav-btn" data-page="library">
+      <span class="nav-icon">▦</span><span>品項庫</span>
+    </button>
+    <button class="nav-btn" data-page="ledger">
+      <span class="nav-icon">∑</span><span>帳本</span>
+    </button>
+    <button class="nav-btn" data-page="photos">
+      <span class="nav-icon">◻</span><span>相簿</span>
     </button>
   </nav>
 
   <main class="main">
 
-    <!-- ==================== SETUP TAB ==================== -->
-    <section class="page active" id="page-setup">
-      <div class="pull-refresh" id="pullRefresh">↓ 下拉重新整理</div>
-      <h1 class="page-title">今日施工</h1>
-      <p class="page-sub">Setup today · 需要去搭的工地</p>
+    <!-- VOICE PAGE -->
+    <section class="page active" id="page-voice">
+      <h1 class="page-title">開一張新報價</h1>
+      <p class="page-sub">Press to speak · 直接說品項跟數量即可</p>
 
-      <div class="today-alert">
-        <div class="today-alert-title">☀ 今天有 1 個工地要搭</div>
-        <div class="today-alert-body">阿城餐廳 · 預計 09:00 開工</div>
+      <div class="voice-card">
+        <button class="mic-btn" id="micBtn">
+          <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/>
+            <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v3M8 22h8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="voice-hint" id="voiceHint">點一下開始說話，再點一下結束</div>
+        <div class="voice-hint-eg">「阿城婚宴5月10進場5月12活動，31尺帳篷兩座、塑膠椅50張、長桌10張、電燈6盞，訂金三成」</div>
+
+        <div class="library-note" style="margin-top: 16px;">
+          <strong>🤖 AI 語音開單：</strong>按麥克風 → 說出報價內容 → 再按一次停止 → AI 自動解析成報價單。也可以用下方文字輸入。
+        </div>
+
+        <div style="margin-top: 16px; text-align: left;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;">或直接打字 Text Input</div>
+          <textarea id="textInput" placeholder="例如：阿城餐廳婚宴，5月10進場5月12活動，31尺白色帳篷兩座、塑膠椅50張、長桌+桌巾10張、電燈6盞，訂金三成" style="width:100%; min-height:80px; padding:12px; border:0.5px solid var(--line); border-radius:10px; font-family:inherit; font-size:13px; background:var(--bg-card); resize:vertical;"></textarea>
+          <button id="parseTextBtn" style="width:100%; margin-top:8px; padding:12px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">🤖 AI 解析並產生報價單</button>
+        </div>
+
+        <div class="transcript" id="transcript">
+          <div class="transcript-label">你說的</div>
+          <div id="transcriptText"></div>
+        </div>
+        <div class="processing" id="processing">AI 解析中，比對品項庫<span class="processing-dots"></span></div>
       </div>
 
-      <div id="setupList"></div>
+      <div class="examples">
+        <button class="example-chip" data-example="0">
+          <span class="example-chip-label">Example 1 · 婚宴</span>
+          阿城餐廳婚宴，統編28456789，5/10進場5/12活動，31尺白色帳篷2座、塑膠椅50張、長桌+桌巾10張、電燈6盞，訂金三成
+        </button>
+        <button class="example-chip" data-example="1">
+          <span class="example-chip-label">Example 2 · 園遊會</span>
+          大興國小園遊會，4/15佈置4/16活動，16尺帳篷10座、長桌20張、摺疊椅100張、電燈10盞、出車費一趟，訂金五成
+        </button>
+        <button class="example-chip" data-example="2">
+          <span class="example-chip-label">Example 3 · 廟會</span>
+          清水巖媽祖遶境，4/20到4/22三天，12尺帳篷15座、長桌30張、塑膠椅150張，優待一千塊
+        </button>
+      </div>
+
+      <!-- QUOTE DOCUMENT -->
+      <div class="quote-doc" id="quoteDoc">
+
+        <div class="internal-bar">
+          <div class="internal-bar-left">
+            <span class="internal-bar-label">◆ 付款方式</span>
+            <div class="pay-toggle">
+              <button class="pay-toggle-btn cash active" id="payCashBtn">💵 現金</button>
+              <button class="pay-toggle-btn transfer" id="payTransferBtn">🏦 轉帳</button>
+            </div>
+          </div>
+          <span class="internal-bar-hint">只有你與太太看得到</span>
+        </div>
+
+        <div class="quote-doc-header">
+          <div class="quote-doc-title">報價單</div>
+          <div class="quote-doc-subtitle">Quotation</div>
+          <div class="quote-doc-no">
+            <div id="previewNo">Q20260416-001</div>
+            <div id="previewDate">2026 · 04 · 16</div>
+          </div>
+        </div>
+
+        <div class="quote-doc-body">
+
+          <div class="party-grid">
+            <div class="party-card us">
+              <div class="party-label">From · 報價方</div>
+              <div class="party-name">隆泰帳篷企業社</div>
+              <div class="party-field"><span class="party-field-label">統編</span><span class="party-field-value">85780745</span></div>
+              <div class="party-field"><span class="party-field-label">負責人</span><span class="party-field-value">康博凱</span></div>
+              <div class="party-field"><span class="party-field-label">電話</span><span class="party-field-value">0980-231-010</span></div>
+            </div>
+
+            <div class="party-card them">
+              <div class="party-label">To · 客戶</div>
+              <div class="party-name" id="clientName">—</div>
+              <div class="party-field"><span class="party-field-label">統編</span><span class="party-field-value" id="clientTax">—</span></div>
+              <div class="party-field"><span class="party-field-label">聯絡人</span><span class="party-field-value" id="clientContact">—</span></div>
+              <div class="party-field"><span class="party-field-label">電話</span><span class="party-field-value" id="clientPhone">—</span></div>
+            </div>
+          </div>
+
+          <div class="validity-note">
+            <span class="validity-icon"></span>
+            <span>本報價單有效期 · 7 天</span>
+          </div>
+
+          <div class="event-dates">
+            <div class="event-date-item">
+              <div class="event-date-label">Set-up · 進場日期</div>
+              <div class="event-date-value" id="setupDate">—</div>
+            </div>
+            <div class="event-date-item">
+              <div class="event-date-label">Event · 活動日期</div>
+              <div class="event-date-value" id="eventDate">—</div>
+            </div>
+          </div>
+
+          <div class="divider-labeled">Items · 報價明細</div>
+          <div class="items-wrap" id="itemsWrap"></div>
+
+          <div class="totals-box" id="totalsBox"></div>
+
+          <div class="payment-split" id="paymentSplit"></div>
+
+          <div class="remark-block">
+            <div class="remark-label">Remarks · 備註（公司章亦可蓋於此）</div>
+            <div class="remark-content" id="remarkContent"></div>
+          </div>
+
+          <div class="client-sig-block">
+            <div class="client-sig-label">◆ Client Signature · 客戶簽章欄</div>
+            <div class="client-sig-hint">客戶確認報價無誤，請於此處簽名並用印</div>
+            <div class="client-sig-line"></div>
+            <div class="client-sig-extras">
+              <div class="client-sig-mini date"></div>
+              <div class="client-sig-mini seal"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="line-send-section">
+          <div class="line-send-label">
+            <span class="line-logo">L</span>
+            Send to LINE · 傳送給客戶
+          </div>
+          <div class="line-send-row">
+            <button class="btn-line-big" onclick="openShareSheet()">📨 傳送到 LINE</button>
+          </div>
+        </div>
+
+        <div class="quote-actions">
+          <button class="btn btn-secondary" onclick="editVoiceQuote()">✏ 編輯內容</button>
+          <button class="btn btn-secondary">匯出 PDF</button>
+          <button class="btn btn-primary" onclick="saveVoiceQuote()">存檔</button>
+        </div>
+      </div>
     </section>
 
-    <!-- ==================== TEARDOWN TAB ==================== -->
-    <section class="page" id="page-teardown">
-      <h1 class="page-title">待拆除工地</h1>
-      <p class="page-sub">Teardown schedule · 活動結束待拆</p>
+    <!-- QUOTES LIST -->
+    <section class="page" id="page-quotes">
+      <h1 class="page-title">所有報價</h1>
+      <p class="page-sub">All quotations · 點擊查看詳細</p>
 
-      <div id="teardownList"></div>
+      <div class="search-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" class="search-input" id="quoteSearch" placeholder="搜尋客戶、編號、品項...">
+        <button class="search-clear" id="quoteSearchClear">×</button>
+      </div>
+
+      <div class="filter-tabs" id="filterTabs"></div>
+      <div id="quotesList"></div>
     </section>
 
-    <!-- ==================== HISTORY TAB ==================== -->
-    <section class="page" id="page-history">
-      <h1 class="page-title">歷史紀錄</h1>
-      <p class="page-sub">Completed · 已完成的工地</p>
-
-      <div id="historyList"></div>
-    </section>
-
-    <!-- ==================== ORDER DETAIL ==================== -->
+    <!-- QUOTE DETAIL -->
     <section class="page" id="page-detail">
-      <div class="back-row">
-        <button class="back-btn" id="backBtn">← 返回列表</button>
-      </div>
+      <div class="back-row"><button class="back-btn" id="backBtn">← 返回列表</button></div>
       <div id="detailContent"></div>
+    </section>
+
+    <!-- ITEM LIBRARY -->
+    <section class="page" id="page-library">
+      <div class="library-head-row">
+        <div>
+          <h1 class="page-title">品項庫</h1>
+          <p class="page-sub" style="margin-bottom: 0;">Item Library · 語音會自動比對這裡的價格</p>
+        </div>
+        <button class="library-add-btn" onclick="addNewItem()">+ 新增</button>
+      </div>
+
+      <div class="search-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" class="search-input" id="librarySearch" placeholder="搜尋品項名稱...">
+        <button class="search-clear" id="librarySearchClear">×</button>
+      </div>
+
+      <div class="library-filter" id="libraryFilter"></div>
+      <div id="libraryList"></div>
+    </section>
+
+    <!-- LEDGER -->
+    <section class="page" id="page-ledger">
+      <h1 class="page-title">帳本</h1>
+      <p class="page-sub">April 2026 · 本月概覽</p>
+
+      <div class="stats-grid">
+        <div class="stat-card highlight">
+          <div class="stat-label">本月已收款</div>
+          <div class="stat-value">NT$ 187,500</div>
+          <div class="stat-delta">↑ 比上月多 22%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">未收款</div>
+          <div class="stat-value">112,500</div>
+          <div class="stat-delta negative">3 張報價</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">成交率</div>
+          <div class="stat-value">75%</div>
+          <div class="stat-delta">6/8 單</div>
+        </div>
+      </div>
+
+      <h3 class="section-heading">
+        收款方式 <span class="section-heading-side">Method</span>
+      </h3>
+      <div id="methodList"></div>
+    </section>
+
+    <!-- PHOTOS -->
+    <section class="page" id="page-photos">
+      <h1 class="page-title">帳篷相簿</h1>
+      <p class="page-sub">Setup records · 搭設紀錄</p>
+
+      <button class="upload-btn" onclick="alert('📷 上傳照片')">
+        <span style="font-size: 20px;">＋</span><span>新增照片紀錄</span>
+      </button>
+
+      <div class="search-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" class="search-input" id="photoSearch" placeholder="搜尋客戶、帳篷型號、筆記...">
+        <button class="search-clear" id="photoSearchClear">×</button>
+      </div>
+
+      <div class="photo-grouping-tabs">
+        <button class="photo-group-btn active" data-group="year">按年份</button>
+        <button class="photo-group-btn" data-group="client">按客戶</button>
+        <button class="photo-group-btn" data-group="all">全部</button>
+      </div>
+
+      <div id="photoGroupedView"></div>
     </section>
 
   </main>
 </div>
 
-<!-- SETUP COMPLETE MODAL -->
-<div class="modal-backdrop" id="setupCompleteModal">
-  <div class="modal-box">
-    <div class="modal-icon">✓</div>
-    <div class="modal-title">搭設完成</div>
-    <div class="modal-sub">請選擇拆除日期，系統會自動排入「待拆除」清單</div>
-    <div class="date-picker-row" id="datePickerRow"></div>
-    <input type="date" class="custom-date" id="customDate">
-    <div class="modal-actions">
-      <button class="modal-btn-sec" onclick="closeSetupModal()">取消</button>
-      <button class="modal-btn-primary" id="confirmSetupBtn">確認完成</button>
-    </div>
-  </div>
-</div>
+<!-- Share sheet (LINE) -->
+<div class="share-sheet" id="shareSheet">
+  <div class="share-sheet-content">
+    <div class="share-sheet-title">傳送到 LINE</div>
+    <div class="share-sheet-sub">選擇傳送格式 · 開啟後請選擇客戶</div>
 
-<!-- TEARDOWN DONE MODAL -->
-<div class="modal-backdrop" id="teardownDoneModal">
-  <div class="modal-box">
-    <div class="modal-icon" style="background: var(--amber-soft); color: var(--amber);">✓</div>
-    <div class="modal-title">確認已拆除完成？</div>
-    <div class="modal-sub" id="teardownClientName">所有器材已撤場，此訂單將歸檔</div>
-    <div class="modal-actions">
-      <button class="modal-btn-sec" onclick="closeTeardownModal()">取消</button>
-      <button class="modal-btn-primary" id="confirmTeardownBtn" style="background: var(--green);">✓ 確認拆除</button>
-    </div>
+    <button class="share-option" onclick="event.preventDefault(); event.stopPropagation(); shareAsImage(); return false;" type="button">
+      <div class="share-option-icon img">IMG</div>
+      <div class="share-option-text">
+        <div class="share-option-title">傳送圖片（推薦）</div>
+        <div class="share-option-desc">客戶在 LINE 裡直接看到整張報價單，最方便</div>
+      </div>
+    </button>
+
+    <button class="share-option" onclick="event.preventDefault(); event.stopPropagation(); shareAsPDF(); return false;" type="button">
+      <div class="share-option-icon pdf">PDF</div>
+      <div class="share-option-text">
+        <div class="share-option-title">傳送 PDF 檔</div>
+        <div class="share-option-desc">正式文件，客戶可下載列印</div>
+      </div>
+    </button>
+
+    <div class="share-status" id="shareStatus"></div>
+
+    <button class="share-cancel" onclick="closeShareSheet()">取消</button>
   </div>
 </div>
 
 <script>
-// ========== SUPABASE 雲端連線 ==========
+// ============================================
+// 🌐 SUPABASE 雲端設定
+// ============================================
+console.log('🚀 [1/6] 程式開始執行');
+
 const SUPABASE_URL = 'https://htsmeyvqcpcwdtpszpve.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__c2PdqONSUkS-pJTrDYJhg_PMoD4vQZ';
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ========== DATA (從雲端讀取) ==========
-const today = new Date();
-let orders = [];
-let itemLibrary = [];
+// ============================================
+// 🤖 GEMINI AI 設定
+// ============================================
+const GEMINI_API_KEY = 'AIzaSyD3xYSu2hh1eDzCCrFO0IqBgtBL0sUOaWM';
 
-// 載入品項庫（給新增品項用）
-async function loadItemLibrary() {
+// 多個模型備援 — 某個忙碌就換下一個
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-flash-latest',
+  'gemini-2.5-flash-lite',
+  'gemini-flash-lite-latest'
+];
+
+function getGeminiEndpoint(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+}
+
+// 用 AI 解析口語描述，轉成結構化報價單
+async function parseVoiceWithAI(transcript, modelIndex = 0, retryCount = 0) {
+  const currentModel = GEMINI_MODELS[modelIndex];
+  console.log(`🤖 [${currentModel}] 送去 AI 解析:`, transcript, retryCount > 0 ? `(重試 ${retryCount})` : '');
+
+  // 把品項庫整理成 AI 能看的格式
+  const itemCatalog = itemLibrary.map(i => `${i.name}:${i.price}`).join('、');
+
+  const prompt = `你是「隆泰帳篷企業社」的智慧報價助理。老闆會用口語描述一張報價單，你要把它解析成 JSON 格式。
+
+【品項庫與單價】（你必須只使用這些品項名稱，不可自己發明。價格單位 NT$）：
+${itemCatalog}
+
+【解析規則】：
+1. 客戶名稱：從口語中找出客戶（例如「阿城餐廳」、「大興國小」）
+2. 日期：今天是 ${new Date().toISOString().slice(0,10)}，如果客戶說「5/10」這種，補上年份變 2026/05/10
+3. 進場日期（setupDate）：客戶要你搬去搭的日期
+4. 活動日期（eventDate）：活動當天或當天起迄
+5. 品項（items）：從口語抓出品項名稱和數量。品項名稱必須**完全符合**品項庫中的名字（找最接近的），qty 是數量，price 從品項庫對應查出
+6. 訂金比例（deposit）：「三成」=0.3、「五成」=0.5、「一半」=0.5，預設 0
+7. 備註（remark）：如果客戶有特別要求放在這裡，沒有就空字串
+
+【只回傳 JSON，不要加任何說明文字，不要用 markdown 包裝】：
+{
+  "client": { "name": "客戶名", "tax": "統編或—", "contact": "聯絡人或—", "phone": "電話或—" },
+  "setupDate": "YYYY/MM/DD",
+  "eventDate": "YYYY/MM/DD",
+  "items": [{ "name": "品項名", "qty": 數字, "price": 數字 }],
+  "deposit": 0.3,
+  "remark": "備註文字"
+}
+
+【老闆說的話】：
+${transcript}${getCorrectionHints()}`;
+
   try {
-    const { data, error } = await db
-      .from('items')
-      .select('name, price, category')
-      .eq('is_active', true)
-      .not('category', 'eq', 'peer')
-      .order('category')
-      .order('name');
-    if (!error && data) {
-      itemLibrary = data;
-      console.log(`📦 載入 ${itemLibrary.length} 個品項供選擇`);
+    const response = await fetch(getGeminiEndpoint(currentModel), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[${currentModel}] API 錯誤:`, response.status, errText);
+
+      // 503 伺服器忙 — 先快速重試 1 次，失敗就換下一個模型
+      if (response.status === 503 && retryCount < 1) {
+        console.warn(`⚠️ 503 伺服器忙，2 秒後重試`);
+        document.getElementById('processing').innerHTML = `Google 伺服器忙碌中，2 秒後重試...`;
+        await new Promise(r => setTimeout(r, 2000));
+        document.getElementById('processing').innerHTML = 'AI 解析中，比對品項庫<span class="processing-dots"></span>';
+        return parseVoiceWithAI(transcript, modelIndex, retryCount + 1);
+      }
+
+      // 503 / 429 / 500 — 換下一個備援模型
+      if ([429, 500, 503].includes(response.status) && modelIndex < GEMINI_MODELS.length - 1) {
+        const nextModel = GEMINI_MODELS[modelIndex + 1];
+        console.log(`🔄 [${currentModel}] 持續失敗，換用 [${nextModel}]`);
+        document.getElementById('processing').innerHTML = `切換到 ${nextModel} 模型重試...`;
+        await new Promise(r => setTimeout(r, 500));
+        document.getElementById('processing').innerHTML = 'AI 解析中，比對品項庫<span class="processing-dots"></span>';
+        return parseVoiceWithAI(transcript, modelIndex + 1, 0);
+      }
+
+      // 針對常見錯誤給友善訊息
+      if (response.status === 503) {
+        throw new Error('Google Gemini 所有備援模型都忙碌中\n\n這不是你的設定問題，是 Google 那邊過載。\n請 2-3 分鐘後再試');
+      } else if (response.status === 429) {
+        throw new Error('AI 今日額度已用完\n\n解決方法：\n1. 等幾分鐘再試\n2. 或到 https://aistudio.google.com/apikey\n   點「Create API key」建一把新的');
+      } else if (response.status === 400) {
+        throw new Error('金鑰格式錯誤或請求有問題');
+      } else if (response.status === 403) {
+        throw new Error('金鑰無效或權限不足');
+      } else {
+        throw new Error(`AI 連線失敗 (${response.status})\n\n${errText.slice(0, 200)}`);
+      }
     }
+
+    const data = await response.json();
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!aiText) throw new Error('AI 沒有回傳內容');
+
+    console.log(`✅ [${currentModel}] AI 解析成功:`, aiText);
+
+    const parsed = JSON.parse(aiText);
+
+    // 驗證並補齊價格（確保價格真的來自品項庫）
+    if (parsed.items && Array.isArray(parsed.items)) {
+      parsed.items.forEach(item => {
+        const found = itemLibrary.find(x => x.name === item.name);
+        if (found) item.price = found.price;
+      });
+    }
+
+    return parsed;
   } catch (err) {
-    console.error('載入品項庫失敗:', err);
+    console.error('AI 解析失敗:', err);
+    throw err;
   }
 }
 
-const statusMap = {
-  'pending-setup': { label: '等待搭設', cls: 'status-pending-setup' },
-  'in-setup': { label: '搭設中', cls: 'status-in-setup' },
-  'pending-teardown': { label: '待拆除', cls: 'status-pending-teardown' },
-  'done': { label: '已完成', cls: 'status-done' }
+console.log('🔍 [2/6] 檢查 window.supabase 是否存在:', typeof window.supabase);
+
+if (typeof window.supabase === 'undefined') {
+  console.error('❌ Supabase 函式庫沒載入！');
+  document.getElementById('loadingText').textContent = '❌ Supabase 函式庫載入失敗';
+}
+
+const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+console.log('✅ [3/6] Supabase client 建立:', db ? '成功' : '失敗');
+
+// Sync indicator helpers
+function setSyncStatus(status, text) {
+  const ind = document.getElementById('syncIndicator');
+  const txt = document.getElementById('syncText');
+  ind.className = 'sync-indicator ' + status;
+  txt.textContent = text;
+}
+
+function showSyncing(msg = '同步中') { setSyncStatus('syncing', msg); }
+function showSynced(msg = '已同步') {
+  setSyncStatus('synced', msg);
+  setTimeout(() => setSyncStatus('synced', '已連線'), 1500);
+}
+function showError(msg = '連線失敗') { setSyncStatus('error', msg); }
+function showOffline() { setSyncStatus('offline', '離線'); }
+
+// ========== 品項庫資料（將從雲端動態載入） ==========
+let itemLibrary = [];
+
+// 從雲端載入品項庫
+async function loadItemsFromCloud() {
+  console.log('📡 [5/6] 開始從雲端讀取品項...');
+  try {
+    setSyncStatus('syncing', '載入品項庫');
+
+    if (!db) {
+      console.error('❌ db 是 null，沒有建立成功');
+      return false;
+    }
+
+    console.log('   → 發送請求到 Supabase...');
+    const { data, error } = await db
+      .from('items')
+      .select('*')
+      .eq('is_active', true)
+      .order('id');
+
+    console.log('   → 收到回應:', { data: data ? data.length + ' 筆' : null, error });
+
+    if (error) {
+      console.error('❌ Supabase 回傳錯誤:', error);
+      throw error;
+    }
+
+    itemLibrary = data.map(row => ({
+      id: row.id,
+      name: row.name,
+      price: row.price,
+      category: row.category
+    }));
+
+    console.log(`✅ [6/6] 從雲端載入 ${itemLibrary.length} 個品項`);
+    return true;
+  } catch (err) {
+    console.error('❌ 載入品項失敗:', err);
+    console.error('   錯誤訊息:', err.message);
+    showError('無法連線');
+    return false;
+  }
+}
+
+// ========== 修正對照表（AI 學習）==========
+let corrections = [];
+
+// 從雲端讀取修正對照表
+async function loadCorrections() {
+  try {
+    const { data, error } = await db
+      .from('corrections')
+      .select('*')
+      .order('use_count', { ascending: false });
+    if (error) throw error;
+    corrections = data || [];
+    console.log(`📝 載入 ${corrections.length} 筆修正對照`);
+  } catch (err) {
+    console.error('載入修正對照失敗:', err);
+    corrections = [];
+  }
+}
+
+// 儲存一筆修正（語音辨識結果 → 你改的正確名稱）
+async function saveCorrection(original, corrected, fieldType) {
+  if (!original || !corrected || original === corrected) return;
+  original = original.trim();
+  corrected = corrected.trim();
+  if (original === corrected) return;
+
+  try {
+    // 先找有沒有已存在的
+    const existing = corrections.find(c => c.original === original && c.field_type === fieldType);
+    if (existing) {
+      // 更新
+      await db.from('corrections').update({
+        corrected: corrected,
+        use_count: (existing.use_count || 0) + 1,
+        updated_at: new Date().toISOString()
+      }).eq('id', existing.id);
+      existing.corrected = corrected;
+      existing.use_count = (existing.use_count || 0) + 1;
+    } else {
+      // 新增
+      const { data, error } = await db.from('corrections').insert([{
+        original: original,
+        corrected: corrected,
+        field_type: fieldType,
+        use_count: 1
+      }]).select();
+      if (!error && data) corrections.push(data[0]);
+    }
+    console.log(`📝 已記錄修正：「${original}」→「${corrected}」`);
+  } catch (err) {
+    console.error('儲存修正失敗:', err);
+  }
+}
+
+// 產生修正對照表給 AI 參考
+function getCorrectionHints() {
+  if (corrections.length === 0) return '';
+  const hints = corrections.map(c => `「${c.original}」→「${c.corrected}」`).join('\n');
+  return `\n\n【老闆的用語修正對照表】（口音或口語慣用語，請直接套用正確名稱）：\n${hints}`;
+}
+async function updateItemPriceInCloud(id, newPrice) {
+  try {
+    showSyncing('儲存中');
+    const { error } = await db
+      .from('items')
+      .update({ price: newPrice, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    showSynced('已儲存');
+    return true;
+  } catch (err) {
+    console.error('更新失敗:', err);
+    showError('儲存失敗');
+    return false;
+  }
+}
+
+// 新增品項到雲端
+async function addItemToCloud(name, price, category) {
+  try {
+    showSyncing('新增中');
+    const { data, error } = await db
+      .from('items')
+      .insert([{ name, price, category, is_active: true }])
+      .select();
+    if (error) throw error;
+    showSynced('已新增');
+    return data[0];
+  } catch (err) {
+    console.error('新增失敗:', err);
+    showError('新增失敗');
+    return null;
+  }
+}
+
+// 刪除品項（軟刪除，標記為 is_active = false）
+async function deleteItemFromCloud(id) {
+  try {
+    showSyncing('刪除中');
+    const { error } = await db
+      .from('items')
+      .update({ is_active: false })
+      .eq('id', id);
+    if (error) throw error;
+    showSynced('已刪除');
+    return true;
+  } catch (err) {
+    console.error('刪除失敗:', err);
+    showError('刪除失敗');
+    return false;
+  }
+}
+
+const categoryLabels = {
+  tent: '帳篷 Tent',
+  furniture: '桌椅 Furniture',
+  equipment: '設備 Equipment',
+  other: '其他 Other',
+  special: '特殊 Special',
+  peer: '同業 Peer'
 };
 
-// 從雲端載入派工資料
-async function loadOrdersFromCloud() {
-  try {
-    console.log('📡 載入派工訂單...');
+// Lookup helper（依名稱自動帶入價格）
+function lookupPrice(name) {
+  const item = itemLibrary.find(x => x.name === name);
+  return item ? item.price : 0;
+}
 
-    // 讀取所有派給 worker 的 dispatches，join quotes 和 quote_items
-    const { data: dispatches, error: dErr } = await db
-      .from('dispatches')
-      .select('*, quotes(*)')
-      .eq('worker_username', 'worker')
+// ========== Examples（使用品項庫價格）==========
+const examples = [
+  {
+    transcript: '阿城餐廳婚宴，統編28456789，5/10進場5/12活動，31尺白色帳篷2座、塑膠椅50張、長桌+桌巾10張、電燈6盞，訂金三成',
+    parsed: {
+      client: { name: '阿城餐廳', tax: '28456789', contact: '陳老闆', phone: '0922-333-444' },
+      setupDate: '2026/05/10', eventDate: '2026/05/12',
+      items: [
+        { name: '31尺白色帳篷', qty: 2, price: lookupPrice('31尺白色帳篷') },
+        { name: '塑膠椅子', qty: 50, price: lookupPrice('塑膠椅子') },
+        { name: '長桌+桌巾', qty: 10, price: lookupPrice('長桌+桌巾') },
+        { name: '電燈', qty: 6, price: lookupPrice('電燈') }
+      ],
+      deposit: 0.3,
+      remark: '1. 帳布限用白色款\n2. 含搬運、組裝、拆除\n3. 本報價單有效期 7 天'
+    }
+  },
+  {
+    transcript: '大興國小園遊會，4/15佈置4/16活動，16尺帳篷10座、長桌20張、摺疊椅100張、電燈10盞、出車費一趟，訂金五成',
+    parsed: {
+      client: { name: '大興國小', tax: '04567891', contact: '王主任', phone: '04-2345-6789' },
+      setupDate: '2026/04/15', eventDate: '2026/04/16',
+      items: [
+        { name: '16尺帳篷', qty: 10, price: lookupPrice('16尺帳篷') },
+        { name: '長桌', qty: 20, price: lookupPrice('長桌') },
+        { name: '摺疊椅', qty: 100, price: lookupPrice('摺疊椅') },
+        { name: '電燈', qty: 10, price: lookupPrice('電燈') },
+        { name: '出車費', qty: 1, price: lookupPrice('出車費') }
+      ],
+      deposit: 0.5,
+      remark: '1. 含全程技術人員現場待命\n2. 本報價單有效期 7 天'
+    }
+  },
+  {
+    transcript: '清水巖媽祖遶境，4/20到4/22三天，12尺帳篷15座、長桌30張、塑膠椅150張，優待一千塊',
+    parsed: {
+      client: { name: '清水巖媽祖廟', tax: '—', contact: '王總幹事', phone: '0933-111-555' },
+      setupDate: '2026/04/20', eventDate: '2026/04/20 - 4/22',
+      items: [
+        { name: '12尺帳篷', qty: 15, price: lookupPrice('12尺帳篷') },
+        { name: '長桌', qty: 30, price: lookupPrice('長桌') },
+        { name: '塑膠椅子', qty: 150, price: lookupPrice('塑膠椅子') },
+        { name: '優待', qty: 1, price: lookupPrice('優待') }
+      ],
+      deposit: 0,
+      remark: '1. 含拆搭、場地整理\n2. 廟方優待 $1000\n3. 本報價單有效期 7 天'
+    }
+  }
+];
+
+// Saved quotes
+let savedQuotes = [
+  { id: 'q1', no: 'Q20260415-002', client: '永豐銀行尾牙', amount: 187500, status: 'paid', date: '04/15', paymentMethod: '轉帳', items: [{name:'25尺帳篷', qty:3, price:1800},{name:'舞台', qty:1, price:1000},{name:'電燈', qty:20, price:150}], setupDate:'04/14', eventDate:'04/15', contact:'HR林小姐', phone:'02-2345-6789', tax:'12345678', remark:'本報價單有效期 7 天' },
+  { id: 'q2', no: 'Q20260414-001', client: '阿城餐廳婚宴', amount: 62600, status: 'accepted', date: '04/14', paymentMethod: '現金', items: [{name:'31尺白色帳篷', qty:2, price:2500},{name:'塑膠椅子', qty:50, price:10},{name:'長桌+桌巾', qty:10, price:230}], setupDate:'05/10', eventDate:'05/12', contact:'陳老闆', phone:'0922-333-444', tax:'28456789', remark:'帳布限用白色款' },
+  { id: 'q3', no: 'Q20260412-003', client: '大興國小園遊會', amount: 16500, status: 'unpaid', date: '04/12', paymentMethod: '轉帳', items: [{name:'16尺帳篷', qty:10, price:600},{name:'長桌', qty:20, price:200}], setupDate:'04/11', eventDate:'04/12', contact:'王主任', phone:'04-2345-6789', tax:'04567891', remark:'活動已完成，待收尾款' },
+  { id: 'q4', no: 'Q20260410-001', client: '清水巖遶境', amount: 10500, status: 'unpaid', date: '04/10', paymentMethod: '現金', items: [{name:'12尺帳篷', qty:15, price:600},{name:'塑膠椅子', qty:150, price:10}], setupDate:'04/08', eventDate:'04/08-10', contact:'王總幹事', phone:'0933-111-555', tax:'—', remark:'活動已完成，待收款' },
+  { id: 'q5', no: 'Q20260408-002', client: '誠品園遊會', amount: 8600, status: 'pending', date: '04/08', paymentMethod: '轉帳', items: [{name:'歐式帳篷', qty:8, price:600},{name:'長桌', qty:16, price:200}], setupDate:'05/05', eventDate:'05/06', contact:'活動組', phone:'02-8787-1234', tax:'18765432', remark:'待客戶回覆' }
+];
+
+// 從雲端載入所有報價單，合併到 savedQuotes
+async function loadQuotesFromCloud() {
+  try {
+    const { data, error } = await db
+      .from('quotes')
+      .select('*, quote_items(*)')
       .order('created_at', { ascending: false });
 
-    if (dErr) throw dErr;
+    if (error) throw error;
+    if (!data || data.length === 0) return;
 
-    if (!dispatches || dispatches.length === 0) {
-      console.log('📋 目前沒有派工訂單');
-      orders = [];
-      return true;
-    }
-
-    // 讀取每張報價單的品項
-    const quoteIds = dispatches.map(d => d.quote_id).filter(Boolean);
-    let itemsMap = {};
-
-    if (quoteIds.length > 0) {
-      const { data: allItems, error: iErr } = await db
-        .from('quote_items')
-        .select('*')
-        .in('quote_id', quoteIds);
-
-      if (!iErr && allItems) {
-        allItems.forEach(item => {
-          if (!itemsMap[item.quote_id]) itemsMap[item.quote_id] = [];
-          itemsMap[item.quote_id].push(item);
+    data.forEach(q => {
+      // 檢查有沒有已存在的（用 quote_no 比對）
+      const existing = savedQuotes.find(s => s.no === q.quote_no);
+      if (existing) {
+        // 更新狀態和金額（雲端最新）
+        existing.status = q.status;
+        existing.amount = q.total_amount || existing.amount;
+        existing.cloud_id = q.id;
+        // 更新品項（如果員工改了）
+        if (q.quote_items && q.quote_items.length > 0) {
+          existing.items = q.quote_items.map(i => ({
+            name: i.item_name,
+            qty: i.quantity,
+            price: i.unit_price
+          }));
+          existing.amount = existing.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+        }
+        if (q.worker_notes) existing.worker_notes = q.worker_notes;
+      } else {
+        // 雲端有但前端沒有 → 新增
+        const date = q.created_at ? q.created_at.slice(5, 10).replace('-', '/') : '';
+        const items = (q.quote_items || []).map(i => ({
+          name: i.item_name,
+          qty: i.quantity,
+          price: i.unit_price
+        }));
+        const amount = items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+        savedQuotes.push({
+          id: 'cloud-' + q.id,
+          cloud_id: q.id,
+          no: q.quote_no,
+          client: q.client_name,
+          tax: q.client_tax_id || '—',
+          contact: q.client_contact || '—',
+          phone: q.client_phone || '—',
+          setupDate: q.setup_date || '—',
+          eventDate: q.event_date_start || '—',
+          items: items,
+          amount: amount || q.total_amount || 0,
+          status: q.status || 'pending',
+          date: date,
+          paymentMethod: q.payment_method || '現金',
+          remark: q.remark || '',
+          worker_notes: q.worker_notes || ''
         });
       }
-    }
+    });
 
-    // 組成員工版 orders 格式
-    orders = dispatches.map(d => {
-      const q = d.quotes || {};
-      const qItems = itemsMap[d.quote_id] || [];
+    console.log(`☁️ 從雲端同步 ${data.length} 筆報價單`);
+  } catch (err) {
+    console.error('載入報價單失敗:', err);
+  }
+}
 
-      // 決定員工端的狀態
-      let workerStatus = 'pending-setup';
-      if (d.status === 'teardown-done' || d.status === 'done') {
-        workerStatus = 'done';
-      } else if (d.status === 'setup-done' || d.teardown_completed_at) {
-        workerStatus = 'done';
-      } else if (d.setup_completed_at) {
-        workerStatus = 'pending-teardown';
-      }
+let photos = [];
 
+// 從雲端讀取照片
+async function loadPhotosFromCloud() {
+  try {
+    const { data, error } = await db
+      .from('photos')
+      .select('*, quotes(client_name, quote_no)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    photos = (data || []).map(p => {
+      const { data: urlData } = db.storage.from('photos').getPublicUrl(p.storage_path);
+      const date = p.created_at ? p.created_at.slice(0, 10) : '';
+      const year = date.slice(0, 4);
       return {
-        id: d.id,
-        dispatch_id: d.id,
-        quote_id: d.quote_id,
-        no: q.quote_no || `ORD-${d.id}`,
-        client: q.client_name || '未知客戶',
-        contact: q.client_contact || '—',
-        phone: q.client_phone || '—',
-        address: q.setup_address || '—',
-        items: qItems.map(i => ({ name: i.item_name, qty: i.quantity })),
-        remark: q.remark || '',
-        setupDate: q.setup_date || '—',
-        eventDate: q.event_date_start || '—',
-        teardownDate: d.teardown_completed_at ? d.teardown_completed_at.slice(0,10) : null,
-        status: workerStatus,
-        worker_notes: d.worker_notes || '',
-        photos: []
+        id: p.id,
+        title: p.photo_type === 'final' ? '搭設完成照' : '施工過程',
+        client: p.quotes ? p.quotes.client_name : '未知客戶',
+        year: year,
+        date: date.replace(/-/g, '/'),
+        notes: p.notes || '',
+        url: urlData.publicUrl,
+        photo_type: p.photo_type
       };
     });
 
-    console.log(`✅ 載入 ${orders.length} 筆派工訂單`);
-    return true;
+    console.log(`📷 從雲端載入 ${photos.length} 張照片`);
   } catch (err) {
-    console.error('❌ 載入派工失敗:', err);
-    return false;
+    console.error('載入照片失敗:', err);
   }
 }
 
-// 搭設完成 — 更新雲端
-async function markSetupComplete(dispatchId, teardownDate, notes) {
-  try {
-    const { error } = await db
-      .from('dispatches')
-      .update({
-        setup_completed_at: new Date().toISOString(),
-        worker_notes: notes || '',
-        status: 'setup-done',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', dispatchId);
+const methodStats = [
+  { name: '現金', amount: 112500, count: 4, pct: 60, color: '#4a6741' },
+  { name: '轉帳', amount: 75000, count: 2, pct: 40, color: '#2a4564' }
+];
 
-    if (error) throw error;
+const statusMap = {
+  pending: { label: '待回覆', cls: 'status-pending' },
+  accepted: { label: '已成交', cls: 'status-accepted' },
+  dispatched: { label: '已派工', cls: 'status-dispatched' },
+  'setup-done': { label: '已搭設', cls: 'status-dispatched' },
+  unpaid: { label: '未收款', cls: 'status-unpaid' },
+  paid: { label: '已收款', cls: 'status-paid' }
+};
 
-    // 也更新 quotes 的狀態
-    const order = orders.find(o => String(o.dispatch_id) === String(dispatchId));
-    if (order && order.quote_id) {
-      await db
-        .from('quotes')
-        .update({
-          status: 'setup-done',
-          setup_completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', order.quote_id);
-    }
+// STATE
+let currentPaymentMethod = '現金';
+let currentFilter = 'all';
+let quoteSearchTerm = '';
+let photoSearchTerm = '';
+let photoGroupBy = 'year';
+let librarySearchTerm = '';
+let libraryCategoryFilter = 'all';
+let currentQuoteData = null;
 
-    console.log('✅ 搭設完成已同步到雲端');
-    return true;
-  } catch (err) {
-    console.error('❌ 更新搭設狀態失敗:', err);
-    alert('同步失敗，請檢查網路');
-    return false;
-  }
-}
-
-// 拆除完成 — 更新雲端
-async function markTeardownComplete(dispatchId) {
-  try {
-    const { error } = await db
-      .from('dispatches')
-      .update({
-        teardown_completed_at: new Date().toISOString(),
-        status: 'done',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', dispatchId);
-
-    if (error) throw error;
-
-    const order = orders.find(o => String(o.dispatch_id) === String(dispatchId));
-    if (order && order.quote_id) {
-      await db
-        .from('quotes')
-        .update({
-          status: 'unpaid',
-          teardown_completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', order.quote_id);
-    }
-
-    console.log('✅ 拆除完成已同步到雲端');
-    return true;
-  } catch (err) {
-    console.error('❌ 更新拆除狀態失敗:', err);
-    alert('同步失敗，請檢查網路');
-    return false;
-  }
-}
-
-// ========== TAB NAV ==========
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+// NAV
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    t.classList.add('active');
-    document.getElementById('page-' + t.dataset.tab).classList.add('active');
+    btn.classList.add('active');
+    document.getElementById('page-' + btn.dataset.page).classList.add('active');
     window.scrollTo({top: 0, behavior: 'smooth'});
   });
 });
 
-document.getElementById('backBtn').addEventListener('click', () => {
-  // figure out which tab to return to based on order status
-  const o = orders.find(x => String(x.id) === String(currentDetailId));
-  let tab = 'setup';
-  if (o) {
-    if (o.status === 'pending-teardown') tab = 'teardown';
-    else if (o.status === 'done') tab = 'history';
-    else tab = 'setup';
+// ==================== VOICE ====================
+const micBtn = document.getElementById('micBtn');
+const voiceHint = document.getElementById('voiceHint');
+const transcript = document.getElementById('transcript');
+const transcriptText = document.getElementById('transcriptText');
+const processing = document.getElementById('processing');
+const quoteDoc = document.getElementById('quoteDoc');
+let isRecording = false;
+
+// ========== 語音辨識（Web Speech API）==========
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let speechSupported = false;
+
+if (SpeechRecognition) {
+  speechSupported = true;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'zh-TW';          // 繁體中文
+  recognition.continuous = true;        // 持續聆聽
+  recognition.interimResults = true;    // 即時顯示辨識中的文字
+  recognition.maxAlternatives = 1;
+
+  let finalText = '';
+  let interimText = '';
+
+  recognition.onstart = () => {
+    isRecording = true;
+    finalText = '';
+    interimText = '';
+    micBtn.classList.add('recording');
+    voiceHint.textContent = '正在聆聽，請說話...';
+    transcriptText.textContent = '';
+    transcript.classList.add('visible');
+    quoteDoc.classList.remove('visible');
+    console.log('🎤 語音辨識開始');
+  };
+
+  recognition.onresult = (event) => {
+    interimText = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalText += t;
+      } else {
+        interimText += t;
+      }
+    }
+    // 即時顯示（最終文字 + 目前辨識中的文字）
+    transcriptText.innerHTML = finalText + (interimText ? `<span style="color:var(--ink-faint)">${interimText}</span>` : '');
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    voiceHint.textContent = '點一下開始說話';
+    console.log('🎤 語音辨識結束，最終文字:', finalText);
+
+    // 如果有辨識到文字，自動送去 AI 解析
+    const result = (finalText + interimText).trim();
+    if (result.length > 0) {
+      document.getElementById('textInput').value = result;
+      transcriptText.textContent = result;
+      runAIParse(result);
+    } else {
+      voiceHint.textContent = '沒聽到聲音，請再試一次';
+      transcript.classList.remove('visible');
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error('🎤 語音辨識錯誤:', event.error);
+    isRecording = false;
+    micBtn.classList.remove('recording');
+
+    if (event.error === 'not-allowed') {
+      voiceHint.textContent = '請允許麥克風權限（點網址列左邊的鎖頭圖示）';
+      alert('⚠ 需要麥克風權限\n\n請點瀏覽器網址列左邊的鎖頭/設定圖示\n→ 找到「麥克風」→ 改成「允許」\n→ 重新整理頁面後再試');
+    } else if (event.error === 'no-speech') {
+      voiceHint.textContent = '沒聽到聲音，請再試一次';
+    } else if (event.error === 'network') {
+      voiceHint.textContent = '網路連線問題，請檢查網路';
+    } else {
+      voiceHint.textContent = `辨識錯誤（${event.error}），請再試一次`;
+    }
+  };
+}
+
+micBtn.addEventListener('click', () => {
+  if (!speechSupported) {
+    alert('你的瀏覽器不支援語音辨識\n\n請用 iPhone Safari 或電腦版 Chrome 開啟');
+    return;
   }
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-  document.getElementById('page-' + tab).classList.add('active');
-  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-  window.scrollTo({top: 0, behavior: 'smooth'});
+
+  if (isRecording) {
+    // 點第二次 = 停止錄音
+    recognition.stop();
+    voiceHint.textContent = '辨識完成，送去 AI 解析...';
+  } else {
+    // 點第一次 = 開始錄音
+    try {
+      recognition.start();
+    } catch (err) {
+      console.error('啟動語音辨識失敗:', err);
+      voiceHint.textContent = '啟動失敗，請重試';
+    }
+  }
 });
 
-// ========== RENDER ==========
-function formatDateDiff(dateStr) {
-  if (!dateStr) return { text: '—', cls: '' };
-  const d = new Date(dateStr.replace(/\//g, '-'));
-  if (isNaN(d.getTime())) return { text: dateStr, cls: '' };
-  const diffDays = Math.round((d - today) / 86400000);
-  if (diffDays === 0) return { text: '今天', cls: 'today' };
-  if (diffDays === 1) return { text: '明天', cls: 'tomorrow' };
-  if (diffDays > 1 && diffDays <= 7) return { text: `${diffDays} 天後`, cls: '' };
-  if (diffDays < 0) return { text: `${Math.abs(diffDays)} 天前`, cls: '' };
-  return { text: dateStr, cls: '' };
+document.getElementById('parseTextBtn').addEventListener('click', async () => {
+  const input = document.getElementById('textInput').value.trim();
+  if (!input) {
+    alert('請先輸入報價內容');
+    return;
+  }
+  await runAIParse(input);
+});
+
+document.querySelectorAll('.example-chip').forEach(chip => {
+  chip.addEventListener('click', async () => {
+    const idx = parseInt(chip.dataset.example);
+    const ex = examples[idx];
+    document.getElementById('textInput').value = ex.transcript;
+    await runAIParse(ex.transcript);
+  });
+});
+
+// 真的呼叫 AI 解析
+async function runAIParse(inputText) {
+  transcriptText.textContent = inputText;
+  transcript.classList.add('visible');
+  quoteDoc.classList.remove('visible');
+  processing.classList.add('visible');
+  document.getElementById('parseTextBtn').disabled = true;
+  document.getElementById('parseTextBtn').textContent = '🤖 AI 解析中...';
+
+  try {
+    const parsed = await parseVoiceWithAI(inputText);
+    processing.classList.remove('visible');
+    renderQuote(parsed);
+  } catch (err) {
+    processing.classList.remove('visible');
+    alert('AI 解析失敗：' + err.message + '\n\n請檢查網路或 API 金鑰');
+  } finally {
+    document.getElementById('parseTextBtn').disabled = false;
+    document.getElementById('parseTextBtn').textContent = '🤖 AI 解析並產生報價單';
+  }
 }
 
-function renderSetup() {
-  const list = document.getElementById('setupList');
-  list.innerHTML = '';
-  const items = orders.filter(o => o.status === 'pending-setup' || o.status === 'in-setup');
+document.getElementById('payCashBtn').addEventListener('click', () => {
+  currentPaymentMethod = '現金';
+  document.getElementById('payCashBtn').classList.add('active');
+  document.getElementById('payTransferBtn').classList.remove('active');
+});
 
-  if (items.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">✓</div>
-        <div class="empty-text">目前沒有要搭的工地</div>
-        <div class="empty-sub">Nothing to set up</div>
-      </div>`;
+document.getElementById('payTransferBtn').addEventListener('click', () => {
+  currentPaymentMethod = '轉帳';
+  document.getElementById('payTransferBtn').classList.add('active');
+  document.getElementById('payCashBtn').classList.remove('active');
+});
+
+function saveVoiceQuote() {
+  if (!currentQuoteData) { alert('請先產生報價單'); return; }
+  const today = new Date();
+  const dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
+  const no = `Q${dateStr}-${String(Math.floor(Math.random()*900)+100)}`;
+  const id = 'voice-' + Date.now();
+  const amount = currentQuoteData.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+  const newQuote = {
+    id: id,
+    no: no,
+    client: currentQuoteData.client.name,
+    tax: currentQuoteData.client.tax || '—',
+    contact: currentQuoteData.client.contact || '—',
+    phone: currentQuoteData.client.phone || '—',
+    setupDate: currentQuoteData.setupDate,
+    eventDate: currentQuoteData.eventDate,
+    items: [...currentQuoteData.items],
+    amount: amount,
+    status: 'pending',
+    date: String(today.getMonth()+1).padStart(2,'0') + '/' + String(today.getDate()).padStart(2,'0'),
+    paymentMethod: currentPaymentMethod,
+    remark: currentQuoteData.remark || ''
+  };
+  savedQuotes.unshift(newQuote);
+  renderFilterTabs();
+  renderQuotesList();
+
+  // 跳到報價列表頁
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-page="quotes"]').classList.add('active');
+  document.getElementById('page-quotes').classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+
+  alert(`✓ 報價單已存檔！\n\n${newQuote.client} · NT$ ${amount.toLocaleString()}\n\n狀態：待回覆\n點「✓ 成交」→「派工」就能派給嘉豐。`);
+}
+
+function editVoiceQuote() {
+  if (!currentQuoteData) { alert('請先產生報價單'); return; }
+  // Save this quote into savedQuotes so it can be edited
+  const today = new Date();
+  const dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
+  const no = `Q${dateStr}-${String(Math.floor(Math.random()*900)+100)}`;
+  const id = 'voice-' + Date.now();
+  const amount = currentQuoteData.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+  const newQuote = {
+    id: id,
+    no: no,
+    client: currentQuoteData.client.name,
+    tax: currentQuoteData.client.tax || '—',
+    contact: currentQuoteData.client.contact || '—',
+    phone: currentQuoteData.client.phone || '—',
+    setupDate: currentQuoteData.setupDate,
+    eventDate: currentQuoteData.eventDate,
+    items: [...currentQuoteData.items],
+    amount: amount,
+    status: 'pending',
+    date: String(today.getMonth()+1).padStart(2,'0') + '/' + String(today.getDate()).padStart(2,'0'),
+    paymentMethod: currentPaymentMethod,
+    remark: currentQuoteData.remark || ''
+  };
+  savedQuotes.unshift(newQuote);
+  renderFilterTabs();
+  renderQuotesList();
+  showDetail(id);
+  // Auto-enter edit mode
+  setTimeout(() => {
+    detailEditMode = true;
+    renderDetail();
+  }, 100);
+}
+
+function runExample(idx) {
+  const ex = examples[idx];
+  transcriptText.textContent = ex.transcript;
+  transcript.classList.add('visible');
+  quoteDoc.classList.remove('visible');
+  processing.classList.add('visible');
+  setTimeout(() => {
+    processing.classList.remove('visible');
+    renderQuote(ex.parsed);
+  }, 1400);
+}
+
+// ==================== QUOTE DETAIL (with edit) ====================
+let currentDetailId = null;
+let detailEditMode = false;
+
+function showDetail(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  currentDetailId = id;
+  detailEditMode = false;
+
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-detail').classList.add('active');
+  document.querySelector('[data-page="quotes"]').classList.add('active');
+
+  renderDetail();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function renderDetail() {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+
+  const s = statusMap[q.status];
+  const cashActive = q.paymentMethod === '現金' ? 'active' : '';
+  const transferActive = q.paymentMethod === '轉帳' ? 'active' : '';
+
+  let subtotal = 0;
+  q.items.forEach(i => subtotal += i.qty * i.price);
+  const depositAmt = Math.round(q.amount * 0.3);
+  const balanceAmt = q.amount - depositAmt;
+
+  let itemsHTML = '';
+  if (detailEditMode) {
+    q.items.forEach((item, idx) => {
+      itemsHTML += `
+        <div class="item-row editing">
+          <div class="item-row-edit">
+            <input type="text" class="name" value="${item.name}" data-idx="${idx}" onchange="updateItem(${idx}, 'name', this.value); showItemSuggestions(this, ${idx})" oninput="showItemSuggestions(this, ${idx})" onfocus="showItemSuggestions(this, ${idx})" onblur="hideItemSuggestions(${idx})" />
+            <input type="number" class="qty" value="${item.qty}" onchange="updateItem(${idx}, 'qty', parseInt(this.value)||0)" />
+            <input type="number" class="price" value="${item.price}" onchange="updateItem(${idx}, 'price', parseInt(this.value)||0)" />
+            <button class="item-row-delete" onclick="deleteItem(${idx})">×</button>
+          </div>
+          <div class="item-autocomplete" id="autocomplete-${idx}"></div>
+        </div>
+      `;
+    });
+    itemsHTML += `
+      <div class="add-item-row">
+        <button class="add-item-btn" onclick="addItem()">+ 新增品項</button>
+      </div>
+    `;
+  } else {
+    q.items.forEach(item => {
+      const sub = item.qty * item.price;
+      const priceDisplay = item.price < 0 ? `-NT$ ${Math.abs(item.price).toLocaleString()}` : `NT$ ${item.price.toLocaleString()}`;
+      const subDisplay = sub < 0 ? `-${Math.abs(sub).toLocaleString()}` : sub.toLocaleString();
+      itemsHTML += `
+        <div class="item-row">
+          <div class="item-name">${item.name}</div>
+          <div class="item-detail">${item.qty} × ${priceDisplay}</div>
+          <div class="item-subtotal">${subDisplay}</div>
+        </div>
+      `;
+    });
+  }
+
+  let bottomBtn = '';
+  if (q.status === 'unpaid') {
+    bottomBtn = `<button class="btn btn-success" onclick="confirmPay('${q.id}')">✓ 確認收款</button>`;
+  } else if (q.status === 'accepted') {
+    bottomBtn = `<button class="btn" style="background: var(--blue); color: #fff;" onclick="dispatchQuote('${q.id}')">📤 派工給嘉豐</button>`;
+  } else if (q.status === 'dispatched') {
+    bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 嘉豐施工中</button>`;
+  } else if (q.status === 'pending') {
+    bottomBtn = `
+      <button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 成交並派工給嘉豐</button>
+    `;
+  }
+
+  const ed = (text, field, placeholder = '—') => {
+    if (!detailEditMode) return text || placeholder;
+    return `<span class="editable ${!text ? 'empty' : ''}" contenteditable="true" data-field="${field}" data-placeholder="${placeholder}" onblur="saveField('${field}', this.textContent)">${text || ''}</span>`;
+  };
+
+  const editHint = detailEditMode ? `
+    <div class="edit-mode-hint">
+      <span>✏</span>
+      <span><strong>編輯模式已開啟</strong>：點任何欄位直接改，完成後按右上「儲存」</span>
+    </div>
+  ` : '';
+
+  document.getElementById('detailContent').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px;">
+      <div style="flex:1;min-width:0;">
+        <h1 class="page-title">${q.client}</h1>
+        <p class="page-sub" style="margin-bottom:0;">${q.no} · 建立於 ${q.date}</p>
+      </div>
+      <button class="edit-mode-toggle ${detailEditMode ? 'active' : ''}" onclick="toggleEditMode()">${detailEditMode ? '儲存' : '編輯'}</button>
+    </div>
+
+    <div style="margin-bottom:20px;"></div>
+
+    ${editHint}
+
+    <div class="quote-doc visible" style="margin-bottom: 16px;">
+      <div class="internal-bar">
+        <div class="internal-bar-left">
+          <span class="internal-bar-label">◆ 付款方式</span>
+          <div class="pay-toggle">
+            <button class="pay-toggle-btn cash ${cashActive}" onclick="changePayMethod('現金')">💵 現金</button>
+            <button class="pay-toggle-btn transfer ${transferActive}" onclick="changePayMethod('轉帳')">🏦 轉帳</button>
+          </div>
+          <span class="status-pill ${s.cls}" style="margin-left:4px">${s.label}</span>
+        </div>
+      </div>
+
+      <div class="quote-doc-header">
+        <div class="quote-doc-title">報價單</div>
+        <div class="quote-doc-subtitle">Quotation</div>
+        <div class="quote-doc-no">
+          <div>${q.no}</div>
+          <div>${q.date}</div>
+        </div>
+      </div>
+
+      <div class="quote-doc-body">
+        <div class="party-grid">
+          <div class="party-card us">
+            <div class="party-label">From · 報價方</div>
+            <div class="party-name">隆泰帳篷企業社</div>
+            <div class="party-field"><span class="party-field-label">統編</span><span class="party-field-value">85780745</span></div>
+            <div class="party-field"><span class="party-field-label">負責人</span><span class="party-field-value">康博凱</span></div>
+            <div class="party-field"><span class="party-field-label">電話</span><span class="party-field-value">0980-231-010</span></div>
+          </div>
+          <div class="party-card them">
+            <div class="party-label">To · 客戶</div>
+            <div class="party-name">${ed(q.client, 'client', '客戶名稱')}</div>
+            <div class="party-field"><span class="party-field-label">統編</span><span class="party-field-value">${ed(q.tax, 'tax')}</span></div>
+            <div class="party-field"><span class="party-field-label">聯絡人</span><span class="party-field-value">${ed(q.contact, 'contact')}</span></div>
+            <div class="party-field"><span class="party-field-label">電話</span><span class="party-field-value">${ed(q.phone, 'phone')}</span></div>
+          </div>
+        </div>
+
+        <div class="validity-note">
+          <span class="validity-icon"></span>
+          <span>本報價單有效期 · 7 天</span>
+        </div>
+
+        <div class="event-dates">
+          <div class="event-date-item">
+            <div class="event-date-label">Set-up · 進場日期</div>
+            <div class="event-date-value">${ed(q.setupDate, 'setupDate', 'YYYY/MM/DD')}</div>
+          </div>
+          <div class="event-date-item">
+            <div class="event-date-label">Event · 活動日期</div>
+            <div class="event-date-value">${ed(q.eventDate, 'eventDate', 'YYYY/MM/DD')}</div>
+          </div>
+        </div>
+
+        <div class="divider-labeled">Items · 報價明細</div>
+        <div class="items-wrap">${itemsHTML}</div>
+
+        <div class="totals-box">
+          <div class="totals-row"><span>小計</span><span>NT$ ${subtotal.toLocaleString()}</span></div>
+          <div class="totals-row grand"><span>總計</span><span class="amount">NT$ ${q.amount.toLocaleString()}</span></div>
+        </div>
+
+        <div class="payment-split">
+          <div class="payment-box deposit">
+            <div class="payment-label">Deposit · 訂金 30%</div>
+            <div class="payment-amount">NT$ ${depositAmt.toLocaleString()}</div>
+          </div>
+          <div class="payment-box balance">
+            <div class="payment-label">Balance · 尾款</div>
+            <div class="payment-amount">NT$ ${balanceAmt.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <div class="remark-block">
+          <div class="remark-label">Remarks · 備註（公司章亦可蓋於此）</div>
+          <div class="remark-content">${detailEditMode ? `<span class="editable" contenteditable="true" data-field="remark" style="white-space:pre-wrap;display:block;min-height:40px;" onblur="saveField('remark', this.innerText)">${q.remark || ''}</span>` : (q.remark || '—').replace(/\n/g,'<br>')}</div>
+        </div>
+
+        <div class="client-sig-block">
+          <div class="client-sig-label">◆ Client Signature · 客戶簽章欄</div>
+          <div class="client-sig-hint">客戶確認報價無誤，請於此處簽名並用印</div>
+          <div class="client-sig-line"></div>
+          <div class="client-sig-extras">
+            <div class="client-sig-mini date"></div>
+            <div class="client-sig-mini seal"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="line-send-section">
+        <div class="line-send-label">
+          <span class="line-logo">L</span>
+          Send to LINE · 傳送給客戶
+        </div>
+        <div class="line-send-row">
+          <button class="btn-line-big" onclick="openShareSheet()">📨 傳送到 LINE</button>
+        </div>
+      </div>
+
+      <div class="quote-actions">
+        <button class="btn btn-secondary">匯出 PDF</button>
+        ${bottomBtn}
+      </div>
+    </div>
+  `;
+
+  // 把 currentQuoteData 更新成這張 detail，讓 LINE 分享能用
+  currentQuoteData = {
+    client: { name: q.client, tax: q.tax, contact: q.contact, phone: q.phone },
+    setupDate: q.setupDate,
+    eventDate: q.eventDate,
+    items: q.items,
+    deposit: 0.3,
+    remark: q.remark
+  };
+}
+
+function toggleEditMode() {
+  detailEditMode = !detailEditMode;
+  renderDetail();
+  if (detailEditMode) {
+    setTimeout(() => {
+      const firstEditable = document.querySelector('#detailContent .editable');
+      if (firstEditable) firstEditable.focus();
+    }, 50);
+  }
+}
+
+function saveField(field, value) {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+  const oldValue = q[field];
+  const newValue = value.trim();
+  q[field] = newValue;
+
+  // 如果修改了客戶名稱、聯絡人、地址等欄位，記錄修正對照
+  if (oldValue && newValue && oldValue !== newValue) {
+    const correctionFields = ['client', 'contact', 'address', 'remark'];
+    if (correctionFields.includes(field)) {
+      saveCorrection(oldValue, newValue, field);
+    }
+  }
+}
+
+function updateItem(idx, field, value) {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+  q.items[idx][field] = value;
+  // If name changed, try auto-fill price from library
+  if (field === 'name') {
+    const found = itemLibrary.find(x => x.name === value);
+    if (found && found.price > 0) {
+      q.items[idx].price = found.price;
+    }
+  }
+  recalcAmount(q);
+}
+
+function deleteItem(idx) {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+  if (q.items.length <= 1) { alert('至少保留一個品項'); return; }
+  q.items.splice(idx, 1);
+  recalcAmount(q);
+  renderDetail();
+  // re-enter edit mode
+  detailEditMode = true;
+  renderDetail();
+}
+
+function addItem() {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+  q.items.push({ name: '', qty: 1, price: 0 });
+  renderDetail();
+}
+
+function recalcAmount(q) {
+  q.amount = q.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+  // Update the total display without full re-render
+  const totalsBox = document.querySelector('#detailContent .totals-box');
+  if (totalsBox) {
+    let subtotal = q.amount;
+    totalsBox.innerHTML = `
+      <div class="totals-row"><span>小計</span><span>NT$ ${subtotal.toLocaleString()}</span></div>
+      <div class="totals-row grand"><span>總計</span><span class="amount">NT$ ${q.amount.toLocaleString()}</span></div>
+    `;
+    const depositAmt = Math.round(q.amount * 0.3);
+    const balanceAmt = q.amount - depositAmt;
+    const paySplit = document.querySelector('#detailContent .payment-split');
+    if (paySplit) {
+      paySplit.innerHTML = `
+        <div class="payment-box deposit">
+          <div class="payment-label">Deposit · 訂金 30%</div>
+          <div class="payment-amount">NT$ ${depositAmt.toLocaleString()}</div>
+        </div>
+        <div class="payment-box balance">
+          <div class="payment-label">Balance · 尾款</div>
+          <div class="payment-amount">NT$ ${balanceAmt.toLocaleString()}</div>
+        </div>
+      `;
+    }
+  }
+}
+
+function showItemSuggestions(input, idx) {
+  const val = input.value.trim();
+  const ac = document.getElementById(`autocomplete-${idx}`);
+  if (!ac) return;
+
+  if (!val) { ac.classList.remove('visible'); return; }
+
+  const matches = itemLibrary
+    .filter(i => i.name.toLowerCase().includes(val.toLowerCase()))
+    .slice(0, 8);
+
+  if (matches.length === 0 || (matches.length === 1 && matches[0].name === val)) {
+    ac.classList.remove('visible');
     return;
   }
 
-  items.forEach(o => {
-    const setupDiff = formatDateDiff(o.setupDate);
-    const eventDiff = formatDateDiff(o.eventDate);
-    const urgentClass = (setupDiff.text === '今天' || setupDiff.text === '明天') ? 'urgent' : '';
+  ac.innerHTML = matches.map(m => {
+    const priceDisplay = m.price < 0 ? `-NT$ ${Math.abs(m.price).toLocaleString()}` : (m.price === 0 ? '需現場估' : `NT$ ${m.price.toLocaleString()}`);
+    return `<div class="item-autocomplete-option" onmousedown="pickItem(${idx}, '${m.name.replace(/'/g, "\\'")}', ${m.price})">
+      <span>${m.name}</span>
+      <span class="item-autocomplete-price">${priceDisplay}</span>
+    </div>`;
+  }).join('');
+  ac.classList.add('visible');
 
-    const card = document.createElement('div');
-    card.className = `order-card ${urgentClass}`;
-    card.innerHTML = `
-      <div class="order-card-top">
-        <div class="order-card-client">${o.client}</div>
-        <div class="order-card-status ${statusMap[o.status].cls}">${statusMap[o.status].label}</div>
-      </div>
-      <div class="order-card-info">
-        <div class="info-row">
-          <span class="info-icon">◉</span>
-          <div class="info-text"><span class="label">地址</span>${o.address}</div>
-        </div>
-        <div class="info-row">
-          <span class="info-icon">☎</span>
-          <div class="info-text"><span class="label">聯絡</span>${o.contact} · <a href="tel:${o.phone}" class="phone-link" onclick="event.stopPropagation()">${o.phone}</a></div>
-        </div>
-        <div class="info-row">
-          <span class="info-icon">▤</span>
-          <div class="info-text"><span class="label">品項</span>${o.items.map(i => `${i.name} ×${i.qty}`).join('、')}</div>
-        </div>
-      </div>
-      <div class="order-card-dates">
-        <div class="date-chunk">
-          <div class="date-chunk-label">搭設日期</div>
-          <div class="date-chunk-value ${setupDiff.cls}">${o.setupDate.substring(5)} · ${setupDiff.text}</div>
-        </div>
-        <div class="date-chunk">
-          <div class="date-chunk-label">活動日期</div>
-          <div class="date-chunk-value ${eventDiff.cls}">${o.eventDate.substring(5)} · ${eventDiff.text}</div>
-        </div>
-      </div>
-      <div class="order-card-actions">
-        <button class="action-btn action-btn-sec">查看詳細</button>
-      </div>
+  // Position below input
+  const rect = input.getBoundingClientRect();
+  const parentRect = input.closest('.item-row').getBoundingClientRect();
+  ac.style.top = (rect.bottom - parentRect.top + 2) + 'px';
+  ac.style.left = (rect.left - parentRect.left) + 'px';
+  ac.style.width = rect.width + 'px';
+}
+
+function hideItemSuggestions(idx) {
+  setTimeout(() => {
+    const ac = document.getElementById(`autocomplete-${idx}`);
+    if (ac) ac.classList.remove('visible');
+  }, 150);
+}
+
+function pickItem(idx, name, price) {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+  q.items[idx].name = name;
+  if (price > 0) q.items[idx].price = price;
+  else if (price < 0) q.items[idx].price = price;  // 優待類
+  recalcAmount(q);
+  renderDetail();
+}
+
+function changePayMethod(method) {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+  q.paymentMethod = method;
+  renderDetail();
+}
+
+function confirmPay(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (confirm(`確認已收到「${q.client}」的款項 NT$ ${q.amount.toLocaleString()}？`)) {
+    q.status = 'paid';
+    renderDetail();
+    renderFilterTabs();
+    renderQuotesList();
+  }
+}
+
+// 確認成交 → 直接派工
+async function acceptQuote(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`確認「${q.client}」成交並派工給嘉豐？`)) return;
+  q.status = 'accepted';
+  await dispatchQuote(id, true);
+}
+
+// 一鍵：成交 + 派工（跟 acceptQuote 一樣了）
+async function acceptAndDispatch(id) {
+  await acceptQuote(id);
+}
+
+// 確保日期格式正確（YYYY-MM-DD）
+function fixDateFormat(dateStr) {
+  if (!dateStr || dateStr === '—') return null;
+  // 移除多餘空白
+  let d = dateStr.trim();
+  // 如果有 空格 或 - 或 ~ 分隔的範圍（如 "4/20 - 4/22"），只取第一個日期
+  d = d.split(/[\s~\-至到]/).filter(s => s.match(/\d/))[0] || d;
+  // 把 / 換成 -
+  d = d.replace(/\//g, '-');
+  // 處理不同格式
+  const parts = d.split('-').map(p => p.trim()).filter(Boolean);
+  const currentYear = new Date().getFullYear();
+
+  if (parts.length === 3) {
+    // YYYY-MM-DD 或 MM-DD-YYYY
+    let [a, b, c] = parts;
+    if (a.length === 4) return `${a}-${b.padStart(2,'0')}-${c.padStart(2,'0')}`;
+    if (c.length === 4) return `${c}-${a.padStart(2,'0')}-${b.padStart(2,'0')}`;
+    return `${a}-${b.padStart(2,'0')}-${c.padStart(2,'0')}`;
+  } else if (parts.length === 2) {
+    // MM-DD（缺年份，補上今年）
+    let [m, dd] = parts;
+    return `${currentYear}-${m.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  return null;
+}
+
+async function dispatchQuote(id, skipConfirm = false) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (!skipConfirm && !confirm(`派工給嘉豐：${q.client}？\n\n嘉豐的 App 會立即收到這筆訂單。`)) return;
+
+  try {
+    showSyncing('派工中');
+
+    // 1. 先查雲端有沒有這張報價單（避免重複 INSERT）
+    let quoteId = q.cloud_id;
+
+    if (!quoteId) {
+      // 用 quote_no 查看雲端有沒有
+      const { data: existing } = await db
+        .from('quotes')
+        .select('id')
+        .eq('quote_no', q.no)
+        .maybeSingle();
+
+      if (existing) {
+        // 已存在，直接用它的 id
+        quoteId = existing.id;
+        q.cloud_id = quoteId;
+        // 更新狀態
+        await db.from('quotes').update({
+          status: 'dispatched',
+          dispatched_at: new Date().toISOString()
+        }).eq('id', quoteId);
+      } else {
+        // 不存在，新建
+        const { data: newQuote, error: qErr } = await db
+          .from('quotes')
+          .insert([{
+            quote_no: q.no,
+            client_name: q.client,
+            client_tax_id: q.tax || '',
+            client_contact: q.contact || '',
+            client_phone: q.phone || '',
+            setup_date: fixDateFormat(q.setupDate),
+            event_date_start: fixDateFormat(q.eventDate),
+            total_amount: q.amount,
+            payment_method: q.paymentMethod || '現金',
+            status: 'dispatched',
+            remark: q.remark || '',
+            created_by: 'boss',
+            dispatched_at: new Date().toISOString()
+          }])
+          .select();
+
+        if (qErr) throw qErr;
+        quoteId = newQuote[0].id;
+        q.cloud_id = quoteId;
+
+        // 存品項明細
+        if (q.items && q.items.length > 0) {
+          const itemRows = q.items.map((item, idx) => ({
+            quote_id: quoteId,
+            item_name: item.name,
+            quantity: item.qty,
+            unit_price: item.price,
+            sort_order: idx
+          }));
+          await db.from('quote_items').insert(itemRows);
+        }
+      }
+    } else {
+      // 已有 cloud_id，只更新狀態
+      await db.from('quotes').update({
+        status: 'dispatched',
+        dispatched_at: new Date().toISOString()
+      }).eq('id', quoteId);
+    }
+
+    // 2. 檢查是否已經有派工紀錄（避免重複派工）
+    const { data: existingDispatch } = await db
+      .from('dispatches')
+      .select('id')
+      .eq('quote_id', quoteId)
+      .eq('worker_username', 'worker')
+      .maybeSingle();
+
+    if (existingDispatch) {
+      // 已經派過了，更新狀態就好
+      await db.from('dispatches').update({
+        status: 'pending',
+        dispatched_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }).eq('id', existingDispatch.id);
+    } else {
+      // 新建派工紀錄
+      const { error: dErr } = await db
+        .from('dispatches')
+        .insert([{
+          quote_id: quoteId,
+          worker_username: 'worker',
+          status: 'pending',
+          dispatched_at: new Date().toISOString()
+        }]);
+      if (dErr) throw dErr;
+    }
+
+    q.status = 'dispatched';
+    showSynced('已派工');
+    alert(`📤 已派工給嘉豐！\n\n「${q.client}」訂單已同步到雲端\n嘉豐重新打開 App 就會看到。`);
+    renderDetail();
+    renderFilterTabs();
+    renderQuotesList();
+  } catch (err) {
+    console.error('派工失敗:', err);
+    showError('派工失敗');
+    alert('派工失敗：' + err.message);
+  }
+}
+
+function renderQuote(d) {
+  currentQuoteData = d;
+  const today = new Date();
+  const dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
+  document.getElementById('previewNo').textContent = `Q${dateStr}-${String(Math.floor(Math.random()*900)+100)}`;
+  document.getElementById('previewDate').textContent = today.getFullYear() + ' · ' + String(today.getMonth()+1).padStart(2,'0') + ' · ' + String(today.getDate()).padStart(2,'0');
+
+  document.getElementById('clientName').textContent = d.client.name;
+  document.getElementById('clientTax').textContent = d.client.tax || '—';
+  document.getElementById('clientContact').textContent = d.client.contact || '—';
+  document.getElementById('clientPhone').textContent = d.client.phone || '—';
+  document.getElementById('setupDate').textContent = d.setupDate;
+  document.getElementById('eventDate').textContent = d.eventDate;
+
+  const wrap = document.getElementById('itemsWrap');
+  wrap.innerHTML = '';
+  let subtotal = 0;
+  d.items.forEach(item => {
+    const sub = item.qty * item.price;
+    subtotal += sub;
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    const priceDisplay = item.price < 0 ? `-NT$ ${Math.abs(item.price).toLocaleString()}` : `NT$ ${item.price.toLocaleString()}`;
+    const subDisplay = sub < 0 ? `-${Math.abs(sub).toLocaleString()}` : sub.toLocaleString();
+    row.innerHTML = `
+      <div class="item-name">${item.name}</div>
+      <div class="item-detail">${item.qty} × ${priceDisplay}</div>
+      <div class="item-subtotal">${subDisplay}</div>
     `;
-    card.addEventListener('click', () => showDetail(o.id));
-    list.appendChild(card);
+    wrap.appendChild(row);
+  });
+
+  const grand = subtotal;
+  document.getElementById('totalsBox').innerHTML = `
+    <div class="totals-row"><span>小計</span><span>NT$ ${subtotal.toLocaleString()}</span></div>
+    <div class="totals-row grand"><span>總計</span><span class="amount">NT$ ${grand.toLocaleString()}</span></div>
+  `;
+
+  const depositPct = d.deposit || 0;
+  const depositAmt = Math.round(grand * depositPct);
+  const balanceAmt = grand - depositAmt;
+  document.getElementById('paymentSplit').innerHTML = `
+    <div class="payment-box deposit">
+      <div class="payment-label">Deposit · 訂金 ${(depositPct*100).toFixed(0)}%</div>
+      <div class="payment-amount">NT$ ${depositAmt.toLocaleString()}</div>
+      <div class="payment-note">簽約時付</div>
+    </div>
+    <div class="payment-box balance">
+      <div class="payment-label">Balance · 尾款</div>
+      <div class="payment-amount">NT$ ${balanceAmt.toLocaleString()}</div>
+      <div class="payment-note">活動完成付</div>
+    </div>
+  `;
+
+  const remarkEl = document.getElementById('remarkContent');
+  if (d.remark && d.remark.trim()) {
+    remarkEl.textContent = d.remark;
+    remarkEl.classList.remove('empty');
+  } else {
+    remarkEl.textContent = '（無備註）';
+    remarkEl.classList.add('empty');
+  }
+
+  quoteDoc.classList.add('visible');
+  setTimeout(() => quoteDoc.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+// ==================== LINE SHARE ====================
+function openShareSheet() {
+  // 先記住當前要分享的報價單元素
+  const voiceDoc = document.querySelector('#quoteDoc');
+  const detailDoc = document.querySelector('#detailContent .quote-doc');
+
+  if (detailDoc && document.getElementById('page-detail').classList.contains('active')) {
+    window._shareTarget = detailDoc;
+  } else if (voiceDoc && voiceDoc.classList.contains('visible')) {
+    window._shareTarget = voiceDoc;
+  } else {
+    alert('請先產生一張報價單');
+    return;
+  }
+
+  document.getElementById('shareSheet').classList.add('visible');
+  document.getElementById('shareStatus').classList.remove('visible');
+}
+
+function closeShareSheet() {
+  document.getElementById('shareSheet').classList.remove('visible');
+}
+
+document.getElementById('shareSheet').addEventListener('click', (e) => {
+  if (e.target.id === 'shareSheet') closeShareSheet();
+});
+
+function getClientName() {
+  if (currentQuoteData && currentQuoteData.client) {
+    const name = currentQuoteData.client.name || currentQuoteData.client;
+    if (typeof name === 'string' && name !== '—') return name;
+  }
+  const titleEl = document.querySelector('#detailContent .page-title');
+  if (titleEl) return titleEl.textContent || '客戶';
+  return '客戶';
+}
+
+async function shareAsImage() {
+  const status = document.getElementById('shareStatus');
+  status.classList.add('visible');
+  status.textContent = '📸 產生圖片中，請稍候...';
+
+  try {
+    const el = window._shareTarget;
+    if (!el) { status.textContent = '✗ 找不到報價單'; return; }
+
+    // 隱藏不該出現在圖片上的元素
+    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
+    const hidden = [];
+    hideSelectors.forEach(sel => {
+      el.querySelectorAll(sel).forEach(node => {
+        hidden.push({ node, prev: node.style.display });
+        node.style.display = 'none';
+      });
+    });
+    // 也隱藏 share sheet 自己（避免截到）
+    const sheet = document.getElementById('shareSheet');
+    sheet.style.visibility = 'hidden';
+
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      backgroundColor: '#fffef9',
+      useCORS: true,
+      logging: false
+    });
+
+    // 還原
+    hidden.forEach(h => h.node.style.display = h.prev);
+    sheet.style.visibility = '';
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) { status.textContent = '✗ 圖片產生失敗'; return; }
+
+      const client = getClientName();
+      const filename = `報價單-${client}-${new Date().toISOString().slice(0,10)}.png`;
+
+      // iPhone Safari 支援 Web Share API
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], filename, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: '隆泰帳篷報價單',
+              text: `隆泰帳篷報價單 · ${client}`
+            });
+            status.textContent = '✓ 已分享！';
+            setTimeout(() => closeShareSheet(), 1500);
+            return;
+          } catch (err) {
+            if (err.name === 'AbortError') {
+              status.textContent = '已取消';
+              return;
+            }
+          }
+        }
+      }
+
+      // 桌面或不支援 → 直接下載
+      downloadBlob(blob, filename);
+      status.textContent = '✓ 圖片已下載到你的電腦！';
+    }, 'image/png');
+  } catch (err) {
+    status.textContent = '✗ 產生失敗：' + err.message;
+    console.error('shareAsImage error:', err);
+  }
+}
+
+async function shareAsPDF() {
+  const status = document.getElementById('shareStatus');
+  status.classList.add('visible');
+  status.textContent = '📄 產生 PDF 中，請稍候...';
+
+  try {
+    const el = window._shareTarget;
+    if (!el) { status.textContent = '✗ 找不到報價單'; return; }
+
+    // 隱藏內部元素
+    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
+    const hidden = [];
+    hideSelectors.forEach(sel => {
+      el.querySelectorAll(sel).forEach(node => {
+        hidden.push({ node, prev: node.style.display });
+        node.style.display = 'none';
+      });
+    });
+    const sheet = document.getElementById('shareSheet');
+    sheet.style.visibility = 'hidden';
+
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      backgroundColor: '#fffef9',
+      logging: false
+    });
+
+    hidden.forEach(h => h.node.style.display = h.prev);
+    sheet.style.visibility = '';
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfMaxHeight = pdf.internal.pageSize.getHeight();
+    const imgData = canvas.toDataURL('image/png');
+    const imgProps = pdf.getImageProperties(imgData);
+    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    if (imgHeight <= pdfMaxHeight) {
+      // 一頁放得下
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+    } else if (imgHeight <= pdfMaxHeight * 1.3) {
+      // 稍微超出一頁 — 整張縮小到一頁（避免簽名欄被切）
+      const scale = pdfMaxHeight / imgHeight;
+      const scaledWidth = pdfWidth * scale;
+      const offsetX = (pdfWidth - scaledWidth) / 2;
+      pdf.addImage(imgData, 'PNG', offsetX, 0, scaledWidth, pdfMaxHeight);
+    } else {
+      // 真的很長 — 分頁（留 10mm 邊距避免切到文字）
+      const pageUsable = pdfMaxHeight - 10;
+      let y = 0;
+      let page = 0;
+      while (y < imgHeight) {
+        if (page > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, -y, pdfWidth, imgHeight);
+        y += pageUsable;
+        page++;
+      }
+    }
+
+    const client = getClientName();
+    const filename = `報價單-${client}-${new Date().toISOString().slice(0,10)}.pdf`;
+    const pdfBlob = pdf.output('blob');
+
+    if (navigator.share && navigator.canShare) {
+      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: '隆泰帳篷報價單',
+            text: `隆泰帳篷報價單 · ${client}`
+          });
+          status.textContent = '✓ 已分享！';
+          setTimeout(() => closeShareSheet(), 1500);
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            status.textContent = '已取消';
+            return;
+          }
+        }
+      }
+    }
+
+    pdf.save(filename);
+    status.textContent = '✓ PDF 已下載到你的電腦！';
+  } catch (err) {
+    status.textContent = '✗ 產生失敗：' + err.message;
+    console.error('shareAsPDF error:', err);
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+// ==================== QUOTE LIST ====================
+function highlightText(text, term) {
+  if (!term || !text) return text;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  return String(text).replace(regex, '<span style="background:#fef3d8;padding:1px 3px;border-radius:3px;">$1</span>');
+}
+
+function matchesQuoteSearch(q) {
+  if (!quoteSearchTerm) return true;
+  const term = quoteSearchTerm.toLowerCase();
+  if (q.client.toLowerCase().includes(term)) return true;
+  if (q.no.toLowerCase().includes(term)) return true;
+  if (q.items.some(i => i.name.toLowerCase().includes(term))) return true;
+  return false;
+}
+
+function renderFilterTabs() {
+  const filtered = quoteSearchTerm ? savedQuotes.filter(matchesQuoteSearch) : savedQuotes;
+  const counts = {
+    all: filtered.length,
+    accepted: filtered.filter(q => q.status === 'accepted').length,
+    dispatched: filtered.filter(q => q.status === 'dispatched' || q.status === 'setup-done').length,
+    unpaid: filtered.filter(q => q.status === 'unpaid').length,
+    pending: filtered.filter(q => q.status === 'pending').length,
+    paid: filtered.filter(q => q.status === 'paid').length
+  };
+  const tabs = [
+    { key: 'all', label: '全部' },
+    { key: 'accepted', label: '待派工' },
+    { key: 'dispatched', label: '已派工' },
+    { key: 'unpaid', label: '未收款' },
+    { key: 'pending', label: '待回覆' },
+    { key: 'paid', label: '已收款' }
+  ];
+  const tabsEl = document.getElementById('filterTabs');
+  tabsEl.innerHTML = '';
+  tabs.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'filter-tab' + (currentFilter === t.key ? ' active' : '');
+    b.innerHTML = `${t.label}<span class="filter-tab-count">${counts[t.key]}</span>`;
+    b.addEventListener('click', () => { currentFilter = t.key; renderFilterTabs(); renderQuotesList(); });
+    tabsEl.appendChild(b);
   });
 }
 
-function renderTeardown() {
-  const list = document.getElementById('teardownList');
+function renderQuotesList() {
+  const list = document.getElementById('quotesList');
   list.innerHTML = '';
-  const items = orders.filter(o => o.status === 'pending-teardown');
+  let results = savedQuotes;
+  if (quoteSearchTerm) results = results.filter(matchesQuoteSearch);
+  if (currentFilter !== 'all') {
+    if (currentFilter === 'dispatched') {
+      results = results.filter(q => q.status === 'dispatched' || q.status === 'setup-done');
+    } else {
+      results = results.filter(q => q.status === currentFilter);
+    }
+  }
 
-  if (items.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">—</div>
-        <div class="empty-text">沒有待拆除的工地</div>
-        <div class="empty-sub">Nothing to tear down</div>
-      </div>`;
+  if (results.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--ink-faint);font-size:13px;">沒有符合的報價單</div>';
     return;
   }
 
-  items.forEach(o => {
-    const teardownDiff = formatDateDiff(o.teardownDate);
-    const urgent = (teardownDiff.text === '今天' || teardownDiff.text.includes('前'));
-
-    const card = document.createElement('div');
-    card.className = `order-card ongoing ${urgent ? 'urgent' : ''}`;
-    card.innerHTML = `
-      <div class="order-card-top">
-        <div class="order-card-client">${o.client}</div>
-        <div class="order-card-status ${statusMap[o.status].cls}">${statusMap[o.status].label}</div>
-      </div>
-      <div class="order-card-info">
-        <div class="info-row">
-          <span class="info-icon">◉</span>
-          <div class="info-text"><span class="label">地址</span>${o.address}</div>
-        </div>
-        <div class="info-row">
-          <span class="info-icon">☎</span>
-          <div class="info-text"><span class="label">聯絡</span>${o.contact} · <a href="tel:${o.phone}" class="phone-link" onclick="event.stopPropagation()">${o.phone}</a></div>
-        </div>
-        <div class="info-row">
-          <span class="info-icon">▤</span>
-          <div class="info-text"><span class="label">品項</span>${o.items.map(i => `${i.name} ×${i.qty}`).join('、')}</div>
-        </div>
-      </div>
-      <div class="order-card-dates">
-        <div class="date-chunk">
-          <div class="date-chunk-label">活動日期</div>
-          <div class="date-chunk-value">${o.eventDate.substring(5)}</div>
-        </div>
-        <div class="date-chunk">
-          <div class="date-chunk-label">拆除日期</div>
-          <div class="date-chunk-value ${teardownDiff.cls}">${o.teardownDate.substring(5)} · ${teardownDiff.text}</div>
-        </div>
-      </div>
-      <div class="order-card-actions">
-        <button class="action-btn action-btn-sec">查看詳細</button>
-        <button class="action-btn action-btn-success" onclick="event.stopPropagation(); openTeardownModal('${o.id}')">✓ 確認拆除</button>
-      </div>
-    `;
-    card.addEventListener('click', () => showDetail(o.id));
-    list.appendChild(card);
-  });
-}
-
-function renderHistory() {
-  const list = document.getElementById('historyList');
-  list.innerHTML = '';
-  const items = orders.filter(o => o.status === 'done');
-
-  if (items.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">—</div>
-        <div class="empty-text">還沒有完成的工地</div>
-      </div>`;
-    return;
-  }
-
-  items.forEach(o => {
+  results.forEach(q => {
+    const s = statusMap[q.status];
     const item = document.createElement('div');
-    item.className = 'history-item';
+    item.className = 'quote-item';
+    const methodTagCls = q.paymentMethod === '現金' ? 'cash' : 'transfer';
+
+    let actionRow = '';
+    if (q.status === 'unpaid') {
+      actionRow = `<div class="quote-item-action">
+        <span class="quote-item-action-hint">◆ 活動完成 · 待收款</span>
+        <button class="btn-mini btn-mini-confirm" data-id="${q.id}">確認收款</button>
+      </div>`;
+    } else if (q.status === 'accepted') {
+      actionRow = `<div class="quote-item-action">
+        <span class="quote-item-action-hint dispatch">◆ 已成交 · 準備派工</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳到 LINE')">📨 LINE</button>
+          <button class="btn-mini btn-mini-dispatch" data-id="${q.id}">派工</button>
+        </div>
+      </div>`;
+    } else if (q.status === 'dispatched') {
+      actionRow = `<div class="quote-item-action">
+        <span class="quote-item-action-hint dispatched">✓ 已派給嘉豐 · 施工中</span>
+      </div>`;
+    } else if (q.status === 'pending') {
+      actionRow = `<div class="quote-item-action">
+        <span class="quote-item-action-hint">◆ 待客戶回覆</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳 LINE')">📨 LINE</button>
+          <button class="btn-mini btn-mini-accept" data-id="${q.id}" style="background:var(--green);color:#fff;">✓ 成交派工</button>
+        </div>
+      </div>`;
+    }
+
     item.innerHTML = `
-      <div class="history-top">
-        <div class="history-client">${o.client}</div>
-        <div class="history-date">${o.eventDate.substring(5)}</div>
+      <div class="quote-item-head">
+        <div class="quote-item-client">${highlightText(q.client, quoteSearchTerm)}</div>
+        <div class="quote-item-amount">NT$ ${q.amount.toLocaleString()}</div>
       </div>
-      <div class="history-meta">
-        <span>${o.items.length} 種品項</span>
-        <span>·</span>
-        <span>${o.photos.length} 張照片</span>
+      <div class="quote-item-meta">
+        <span>${highlightText(q.no, quoteSearchTerm)} · ${q.date} <span class="payment-method-tag ${methodTagCls}" style="margin-left:6px">${q.paymentMethod}</span></span>
+        <span class="status-pill ${s.cls}">${s.label}</span>
       </div>
+      ${actionRow}
     `;
-    item.addEventListener('click', () => showDetail(o.id));
+
+    item.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-mini-confirm')) {
+        e.stopPropagation();
+        if (confirm(`確認收到 ${q.client} NT$ ${q.amount.toLocaleString()}？`)) {
+          q.status = 'paid';
+          renderFilterTabs(); renderQuotesList();
+        }
+      } else if (e.target.classList.contains('btn-mini-accept')) {
+        e.stopPropagation();
+        acceptQuote(q.id);
+      } else if (e.target.classList.contains('btn-mini-dispatch')) {
+        e.stopPropagation();
+        dispatchQuote(q.id);
+      } else if (!e.target.classList.contains('btn-mini')) {
+        showDetail(q.id);
+      }
+    });
     list.appendChild(item);
   });
 }
 
-// ========== DETAIL VIEW ==========
-let currentDetailId = null;
+document.getElementById('quoteSearch').addEventListener('input', (e) => {
+  quoteSearchTerm = e.target.value.trim();
+  document.getElementById('quoteSearchClear').classList.toggle('visible', !!quoteSearchTerm);
+  renderFilterTabs(); renderQuotesList();
+});
 
-function showDetail(id) {
-  const o = orders.find(x => String(x.id) === String(id));
-  if (!o) return;
-  currentDetailId = id;
+document.getElementById('quoteSearchClear').addEventListener('click', () => {
+  document.getElementById('quoteSearch').value = '';
+  quoteSearchTerm = '';
+  document.getElementById('quoteSearchClear').classList.remove('visible');
+  renderFilterTabs(); renderQuotesList();
+});
 
+document.getElementById('backBtn').addEventListener('click', () => {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-detail').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-quotes').classList.add('active');
+  document.querySelector('[data-page="quotes"]').classList.add('active');
+  detailEditMode = false;
+});
 
-  const s = statusMap[o.status];
-
-  // 品項可調整（員工到現場後客戶改數量）
-  const canEdit = (o.status === 'pending-setup' || o.status === 'in-setup' || o.status === 'pending-teardown');
-
-  const itemsHTML = o.items.map((i, idx) => `
-    <div class="item-line" style="display:flex;align-items:center;gap:8px;">
-      <span class="item-line-name" style="flex:1;">${i.name}</span>
-      ${canEdit ? `
-        <button onclick="adjustQty(${o.id}, ${idx}, -1)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--bg-card);font-size:16px;cursor:pointer;">−</button>
-        <span class="item-line-qty" style="min-width:32px;text-align:center;font-weight:600;">×${i.qty}</span>
-        <button onclick="adjustQty(${o.id}, ${idx}, 1)" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--bg-card);font-size:16px;cursor:pointer;">+</button>
-        <button onclick="removeItem(${o.id}, ${idx})" style="width:28px;height:28px;border-radius:50%;border:1px solid #fde2dc;background:#fff8f5;color:#a3391e;font-size:14px;cursor:pointer;">×</button>
-      ` : `
-        <span class="item-line-qty">×${i.qty}</span>
-      `}
-    </div>
-  `).join('');
-
-  // 加入「客戶臨時調整」的按鈕（只在尚未完成時顯示）
-  const adjustSection = canEdit ? `
-    <div style="margin-top:10px;padding-top:10px;border-top:0.5px dashed var(--line);">
-      <button onclick="addItemOnSite(${o.id})" style="width:100%;padding:10px;background:var(--worker-light);border:1px dashed var(--worker);border-radius:8px;font-family:inherit;font-size:13px;color:var(--worker);cursor:pointer;">
-        + 客戶臨時新增品項
-      </button>
-    </div>
-  ` : '';
-
-  const photosHTML = o.photos.length > 0 ? `
-    <div class="photo-grid">
-      ${o.photos.map(p => `
-        <div class="photo-thumb ${p.label === 'final' ? 'is-final' : ''}" ${p.url ? `onclick="window.open('${p.url}','_blank')"` : ''}>
-          ${p.url
-            ? `<img src="${p.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`
-            : `<svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="1">
-                <path d="M10 70 L50 30 L90 70 Z"/>
-                <path d="M50 30 L50 70"/>
-                <path d="M10 70 L90 70"/>
-              </svg>`
-          }
-          ${p.label === 'teardown' ? '<div class="photo-thumb-badge">拆</div>' : ''}
-          ${p.label === 'final' ? '<div class="photo-thumb-badge" style="background:var(--green)">完工</div>' : ''}
-        </div>
-      `).join('')}
-    </div>
-  ` : '<div style="font-size:12px; color:var(--ink-faint); padding:10px 0;">尚未拍攝照片</div>';
-
-  // Main action based on status
-  let bigAction = '';
-  if (o.status === 'pending-setup' || o.status === 'in-setup') {
-    bigAction = `
-      <div class="big-action-container">
-        <button class="big-action success" onclick="openSetupModal('${o.id}')">
-          ✓ 搭設完成
-        </button>
-        <div class="big-action-hint">按下後請輸入拆除日期</div>
-      </div>
-    `;
-  } else if (o.status === 'pending-teardown') {
-    bigAction = `
-      <div class="big-action-container">
-        <button class="big-action alert" onclick="openTeardownModal('${o.id}')">
-          ✓ 已拆除完成
-        </button>
-        <div class="big-action-hint">撤場完畢後按此歸檔</div>
-      </div>
-    `;
-  }
-
-  const setupDiff = formatDateDiff(o.setupDate);
-  const eventDiff = formatDateDiff(o.eventDate);
-  const teardownDiff = o.teardownDate ? formatDateDiff(o.teardownDate) : null;
-
-  document.getElementById('detailContent').innerHTML = `
-    <div class="detail-header">
-      <div class="detail-client">${o.client}</div>
-      <div class="detail-order-no">${o.no}</div>
-      <div class="order-card-status ${s.cls}" style="display:inline-block;">${s.label}</div>
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">CLIENT · 客戶資訊</div>
-      <div class="detail-info-grid">
-        <div class="detail-field">
-          <span class="detail-field-label">地址</span>
-          <span class="detail-field-value">${o.address}</span>
-        </div>
-        <div class="detail-field">
-          <span class="detail-field-label">聯絡人</span>
-          <span class="detail-field-value">${o.contact}</span>
-        </div>
-        <div class="detail-field">
-          <span class="detail-field-label">電話</span>
-          <span class="detail-field-value"><a href="tel:${o.phone}">${o.phone}</a></span>
-        </div>
-      </div>
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">SCHEDULE · 時程</div>
-      <div class="detail-info-grid">
-        <div class="detail-field">
-          <span class="detail-field-label">搭設</span>
-          <span class="detail-field-value">${o.setupDate} · ${setupDiff.text}</span>
-        </div>
-        <div class="detail-field">
-          <span class="detail-field-label">活動</span>
-          <span class="detail-field-value">${o.eventDate} · ${eventDiff.text}</span>
-        </div>
-        ${o.teardownDate ? `
-        <div class="detail-field">
-          <span class="detail-field-label">拆除</span>
-          <span class="detail-field-value">${o.teardownDate} · ${teardownDiff.text}</span>
-        </div>` : ''}
-      </div>
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">ITEMS · 需要品項 ${canEdit ? '<span style="font-size:10px;color:var(--worker);font-weight:400;">（可調整數量）</span>' : ''}</div>
-      <div class="item-list">${itemsHTML}</div>
-      ${adjustSection}
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">NOTES · 老闆備註</div>
-      <div class="worker-remark">${o.remark}</div>
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">
-        <span>PHOTOS · 現場紀錄</span>
-        <span style="color: var(--worker); font-weight:600;">${o.photos.length} 張</span>
-      </div>
-      <div class="photo-upload-area">
-        <div class="photo-upload-row">
-          <label class="photo-upload-btn final" style="cursor:pointer;flex:1;">
-            <span>📷</span> 直接拍照
-            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="uploadPhoto(this, '${o.id}', 'final')">
-          </label>
-          <label class="photo-upload-btn final" style="cursor:pointer;flex:1;">
-            <span>🖼</span> 從相簿選
-            <input type="file" accept="image/*" style="display:none;" onchange="uploadPhoto(this, '${o.id}', 'final')">
-          </label>
-        </div>
-        ${photosHTML}
-        <div class="photo-note-editor">
-          <label>NOTES · 施工筆記（可寫怎麼搭、注意事項）</label>
-          <textarea placeholder="例：主桿下加壓重沙包、燈串從左上拉到右下、客人要求入口朝南..."></textarea>
-        </div>
-      </div>
-    </div>
-
-    ${bigAction}
-  `;
-  window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-// 真的拍照上傳到 Supabase Storage
-async function uploadPhoto(input, orderId, photoType) {
-  const file = input.files[0];
-  if (!file) return;
-
-  const o = orders.find(x => String(x.id) === String(orderId));
-  if (!o) return;
-
-  // 顯示上傳中
-  const typeLabel = photoType === 'final' ? '搭設完成照' : '過程照片';
-  const statusMsg = document.createElement('div');
-  statusMsg.style.cssText = 'text-align:center;padding:12px;color:var(--worker);font-size:13px;font-weight:500;';
-  statusMsg.textContent = `📤 上傳${typeLabel}中...`;
-  input.closest('.photo-upload-area').insertBefore(statusMsg, input.closest('.photo-upload-row').nextSibling);
-
-  try {
-    // 壓縮圖片
-    const compressed = await compressImage(file, 1200, 0.8);
-
-    // 產生檔名
-    const timestamp = Date.now();
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `orders/${o.quote_id || orderId}/${photoType}_${timestamp}.${ext}`;
-
-    // 上傳到 Supabase Storage
-    const { data, error } = await db.storage
-      .from('photos')
-      .upload(path, compressed, {
-        contentType: compressed.type || 'image/jpeg',
-        upsert: false
-      });
-
-    if (error) throw error;
-
-    // 取得公開網址
-    const { data: urlData } = db.storage
-      .from('photos')
-      .getPublicUrl(path);
-
-    const publicUrl = urlData.publicUrl;
-
-    // 寫入 photos 資料表
-    const { error: dbErr } = await db
-      .from('photos')
-      .insert([{
-        quote_id: o.quote_id || null,
-        storage_path: path,
-        photo_type: photoType,
-        notes: '',
-        uploaded_by: 'worker'
-      }]);
-
-    if (dbErr) console.error('寫入 photos 表失敗:', dbErr);
-
-    // 更新本地資料
-    o.photos.push({
-      id: 'p' + timestamp,
-      label: photoType,
-      note: '',
-      url: publicUrl
+// ==================== LIBRARY ====================
+function renderLibraryFilter() {
+  const filterEl = document.getElementById('libraryFilter');
+  const filters = [
+    { key: 'all', label: '全部' },
+    { key: 'tent', label: '帳篷' },
+    { key: 'furniture', label: '桌椅' },
+    { key: 'equipment', label: '設備' },
+    { key: 'other', label: '其他' },
+    { key: 'peer', label: '同業' }
+  ];
+  filterEl.innerHTML = '';
+  filters.forEach(f => {
+    const count = f.key === 'all' ? itemLibrary.length : itemLibrary.filter(i => i.category === f.key).length;
+    if (count === 0) return;
+    const b = document.createElement('button');
+    b.className = 'library-filter-tab' + (libraryCategoryFilter === f.key ? ' active' : '');
+    b.innerHTML = `${f.label}<span class="filter-tab-count">${count}</span>`;
+    b.addEventListener('click', () => {
+      libraryCategoryFilter = f.key;
+      renderLibraryFilter();
+      renderLibrary();
     });
-
-    statusMsg.textContent = `✓ ${typeLabel}已上傳！`;
-    statusMsg.style.color = 'var(--green)';
-    setTimeout(() => {
-      statusMsg.remove();
-      showDetail(orderId);
-    }, 1000);
-
-    console.log(`✅ 照片已上傳: ${path}`);
-  } catch (err) {
-    console.error('上傳失敗:', err);
-    statusMsg.textContent = `✗ 上傳失敗：${err.message}`;
-    statusMsg.style.color = 'var(--alert)';
-    setTimeout(() => statusMsg.remove(), 3000);
-  }
-
-  // 清空 input
-  input.value = '';
-}
-
-// 壓縮圖片
-function compressImage(file, maxWidth, quality) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let w = img.width;
-        let h = img.height;
-        if (w > maxWidth) {
-          h = Math.round(h * maxWidth / w);
-          w = maxWidth;
-        }
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        canvas.toBlob((blob) => { resolve(blob); }, 'image/jpeg', quality);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+    filterEl.appendChild(b);
   });
 }
 
-// ========== 品項調整（客戶臨時增減）==========
+function renderLibrary() {
+  const listEl = document.getElementById('libraryList');
+  listEl.innerHTML = '';
 
-// 調整數量（+1 或 -1）
-async function adjustQty(orderId, itemIdx, delta) {
-  const o = orders.find(x => String(x.id) === String(orderId));
-  if (!o || !o.items[itemIdx]) return;
+  let items = itemLibrary;
+  if (libraryCategoryFilter !== 'all') items = items.filter(i => i.category === libraryCategoryFilter);
+  if (librarySearchTerm) {
+    items = items.filter(i => i.name.toLowerCase().includes(librarySearchTerm.toLowerCase()));
+  }
 
-  const item = o.items[itemIdx];
-  const oldQty = item.qty;
-  const newQty = Math.max(0, oldQty + delta);
-
-  if (newQty === 0) {
-    removeItem(orderId, itemIdx);
+  if (items.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--ink-faint);font-size:13px;">沒有符合的品項</div>';
     return;
   }
 
-  item.qty = newQty;
-
-  if (o.quote_id) {
-    try {
-      const { data: qItems } = await db
-        .from('quote_items')
-        .select('id')
-        .eq('quote_id', o.quote_id)
-        .order('sort_order');
-
-      if (qItems && qItems[itemIdx]) {
-        await db.from('quote_items')
-          .update({ quantity: newQty })
-          .eq('id', qItems[itemIdx].id);
-      }
-
-      await recalcQuoteTotal(o.quote_id);
-
-      // 寫入變更紀錄讓老闆看到
-      const changeNote = `[現場調整] ${item.name}: ${oldQty} → ${newQty}`;
-      await db.from('quotes').update({
-        worker_notes: changeNote,
-        updated_at: new Date().toISOString()
-      }).eq('id', o.quote_id);
-
-      console.log(`✅ 品項調整：${item.name} ${oldQty} → ${newQty}`);
-    } catch (err) {
-      console.error('品項調整失敗:', err);
-    }
+  // Group by category if no search
+  if (!librarySearchTerm && libraryCategoryFilter === 'all') {
+    const groups = {};
+    items.forEach(i => {
+      if (!groups[i.category]) groups[i.category] = [];
+      groups[i.category].push(i);
+    });
+    const order = ['tent', 'furniture', 'equipment', 'other', 'special', 'peer'];
+    order.forEach(cat => {
+      if (!groups[cat]) return;
+      const head = document.createElement('div');
+      head.className = 'library-group-head';
+      head.innerHTML = `<span>${categoryLabels[cat]}</span><span>${groups[cat].length} 項</span>`;
+      listEl.appendChild(head);
+      groups[cat].forEach(i => listEl.appendChild(makeLibraryItem(i)));
+    });
+  } else {
+    items.forEach(i => listEl.appendChild(makeLibraryItem(i)));
   }
-
-  showDetail(orderId);
 }
 
-// 刪除品項
-async function removeItem(orderId, itemIdx) {
-  const o = orders.find(x => String(x.id) === String(orderId));
-  if (!o || !o.items[itemIdx]) return;
-
-  const item = o.items[itemIdx];
-  if (!confirm(`確定移除「${item.name} ×${item.qty}」？\n\n老闆那邊會收到通知。`)) return;
-
-  o.items.splice(itemIdx, 1);
-
-  if (o.quote_id) {
-    try {
-      const { data: qItems } = await db
-        .from('quote_items')
-        .select('id')
-        .eq('quote_id', o.quote_id)
-        .order('sort_order');
-
-      if (qItems && qItems[itemIdx]) {
-        await db.from('quote_items').delete().eq('id', qItems[itemIdx].id);
-      }
-
-      await recalcQuoteTotal(o.quote_id);
-
-      // 寫入變更紀錄
-      const changeNote = `[現場調整] 移除 ${item.name} ×${item.qty}`;
-      await db.from('quotes').update({
-        worker_notes: changeNote,
-        updated_at: new Date().toISOString()
-      }).eq('id', o.quote_id);
-
-      console.log(`✅ 已移除品項：${item.name}`);
-    } catch (err) {
-      console.error('刪除品項失敗:', err);
-    }
+function makeLibraryItem(item) {
+  const div = document.createElement('div');
+  div.className = 'library-item';
+  let priceDisplay, priceCls = '';
+  if (item.price < 0) {
+    priceDisplay = `-NT$ ${Math.abs(item.price).toLocaleString()}`;
+    priceCls = 'negative';
+  } else if (item.price === 0) {
+    priceDisplay = '需現場估';
+    priceCls = 'zero';
+  } else {
+    priceDisplay = `NT$ ${item.price.toLocaleString()}`;
   }
-
-  showDetail(orderId);
+  div.innerHTML = `
+    <div class="library-item-name ${item.category === 'special' ? 'special' : ''}">${highlightText(item.name, librarySearchTerm)}</div>
+    <div class="library-item-price ${priceCls}">${priceDisplay}</div>
+    <button class="library-item-edit" onclick="editLibraryItem(${item.id})">編輯</button>
+  `;
+  return div;
 }
 
-// 客戶臨時新增品項（下拉選單）
-async function addItemOnSite(orderId) {
-  const o = orders.find(x => String(x.id) === String(orderId));
-  if (!o) return;
+// 編輯品項（真的存回雲端）
+async function editLibraryItem(id) {
+  const item = itemLibrary.find(x => x.id === id);
+  if (!item) return;
 
-  // 建立彈出視窗
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,22,20,0.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  const newPriceStr = prompt(
+    `✏ 編輯品項：${item.name}\n\n目前單價：NT$ ${item.price.toLocaleString()}\n\n請輸入新單價（負數代表折扣，例如 -1000）：`,
+    item.price
+  );
 
-  const categoryLabels = { tent: '帳篷', furniture: '桌椅', equipment: '設備', other: '其他', special: '特殊' };
+  if (newPriceStr === null) return;
 
-  // 按分類分組
-  const grouped = {};
-  itemLibrary.forEach(item => {
-    const cat = item.category || 'other';
-    if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push(item);
-  });
+  const newPrice = parseInt(newPriceStr);
+  if (isNaN(newPrice)) {
+    alert('請輸入有效數字');
+    return;
+  }
 
-  const optionsHTML = Object.keys(grouped).map(cat => {
-    const label = categoryLabels[cat] || cat;
-    const opts = grouped[cat].map(i =>
-      `<option value="${i.name}" data-price="${i.price}">${i.name}</option>`
-    ).join('');
-    return `<optgroup label="── ${label} ──">${opts}</optgroup>`;
-  }).join('');
+  if (newPrice === item.price) return;
 
-  overlay.innerHTML = `
-    <div style="background:var(--bg-card);border-radius:16px;max-width:380px;width:100%;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
-      <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:500;margin-bottom:14px;">客戶臨時新增品項</div>
+  const ok = await updateItemPriceInCloud(id, newPrice);
+  if (ok) {
+    item.price = newPrice;
+    renderLibrary();
+  }
+}
 
-      <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px;">選擇品項</label>
-      <select id="addItemSelect" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;background:var(--bg-card);margin-bottom:12px;">
-        <option value="">-- 請選擇 --</option>
-        ${optionsHTML}
-      </select>
+// 新增品項到雲端
+async function addNewItem() {
+  const name = prompt('➕ 新增品項\n\n品項名稱（例如：LED 彩色燈條）：');
+  if (!name || !name.trim()) return;
 
-      <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px;">或手動輸入品項名稱</label>
-      <input type="text" id="addItemCustom" placeholder="例如：LED 燈條" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:12px;box-sizing:border-box;">
+  const priceStr = prompt(`單價（NT$）：\n\n正數：正常單價\n0：需現場估\n負數：折扣`, '0');
+  if (priceStr === null) return;
 
-      <label style="font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px;">數量</label>
-      <input type="number" id="addItemQty" value="1" min="1" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:16px;box-sizing:border-box;">
+  const price = parseInt(priceStr) || 0;
 
-      <div style="display:flex;gap:8px;">
-        <button id="addItemCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg-card);font-family:inherit;font-size:14px;cursor:pointer;">取消</button>
-        <button id="addItemConfirm" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--worker);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">✓ 確認新增</button>
-      </div>
+  const categoryStr = prompt(
+    '分類：\n\n1 = 帳篷 tent\n2 = 桌椅 furniture\n3 = 設備 equipment\n4 = 其他 other\n5 = 特殊（折扣類）special\n6 = 同業 peer\n\n輸入數字：',
+    '4'
+  );
+  if (categoryStr === null) return;
+
+  const catMap = { '1': 'tent', '2': 'furniture', '3': 'equipment', '4': 'other', '5': 'special', '6': 'peer' };
+  const category = catMap[categoryStr.trim()] || 'other';
+
+  const newItem = await addItemToCloud(name.trim(), price, category);
+  if (newItem) {
+    itemLibrary.push({
+      id: newItem.id,
+      name: newItem.name,
+      price: newItem.price,
+      category: newItem.category
+    });
+    renderLibraryFilter();
+    renderLibrary();
+  }
+}
+
+document.getElementById('librarySearch').addEventListener('input', (e) => {
+  librarySearchTerm = e.target.value.trim();
+  document.getElementById('librarySearchClear').classList.toggle('visible', !!librarySearchTerm);
+  renderLibrary();
+});
+
+document.getElementById('librarySearchClear').addEventListener('click', () => {
+  document.getElementById('librarySearch').value = '';
+  librarySearchTerm = '';
+  document.getElementById('librarySearchClear').classList.remove('visible');
+  renderLibrary();
+});
+
+// ==================== LEDGER ====================
+const methodList = document.getElementById('methodList');
+methodStats.forEach(m => {
+  const div = document.createElement('div');
+  div.style.cssText = 'background: var(--bg-card); border: 0.5px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+      <span style="font-size:14px;">${m.name} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-faint);margin-left:6px;">${m.count} 筆</span></span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;">NT$ ${m.amount.toLocaleString()}</span>
+    </div>
+    <div style="height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden;">
+      <div style="height:100%;width:${m.pct}%;background:${m.color};"></div>
     </div>
   `;
+  methodList.appendChild(div);
+});
 
-  document.body.appendChild(overlay);
-
-  // 下拉選單選了就清空手動輸入
-  document.getElementById('addItemSelect').addEventListener('change', () => {
-    document.getElementById('addItemCustom').value = '';
-  });
-  // 手動輸入了就清空下拉
-  document.getElementById('addItemCustom').addEventListener('input', () => {
-    document.getElementById('addItemSelect').value = '';
-  });
-
-  // 取消
-  document.getElementById('addItemCancel').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-  // 確認
-  document.getElementById('addItemConfirm').addEventListener('click', async () => {
-    const select = document.getElementById('addItemSelect');
-    const custom = document.getElementById('addItemCustom').value.trim();
-    const qty = parseInt(document.getElementById('addItemQty').value) || 1;
-
-    let name = '';
-    let price = 0;
-
-    if (select.value) {
-      name = select.value;
-      const opt = select.selectedOptions[0];
-      price = parseInt(opt.dataset.price) || 0;
-    } else if (custom) {
-      name = custom;
-      // 嘗試從品項庫找價格
-      const found = itemLibrary.find(i => i.name === custom);
-      if (found) price = found.price;
-    } else {
-      alert('請選擇或輸入品項名稱');
-      return;
-    }
-
-    o.items.push({ name, qty });
-
-    if (o.quote_id) {
-      try {
-        await db.from('quote_items').insert([{
-          quote_id: o.quote_id,
-          item_name: name,
-          quantity: qty,
-          unit_price: price,
-          sort_order: o.items.length - 1
-        }]);
-
-        await db.from('quotes').update({
-          worker_notes: `[現場調整] 新增 ${name} ×${qty}`,
-          updated_at: new Date().toISOString()
-        }).eq('id', o.quote_id);
-
-        console.log(`✅ 新增品項：${name} ×${qty}`);
-      } catch (err) {
-        console.error('新增品項失敗:', err);
-      }
-    }
-
-    overlay.remove();
-    alert(`✓ 已新增「${name} ×${qty}」\n\n老闆那邊會收到更新。`);
-    showDetail(orderId);
-  });
-}
-
-// 重算報價單總金額
-async function recalcQuoteTotal(quoteId) {
-  try {
-    const { data: items } = await db
-      .from('quote_items')
-      .select('quantity, unit_price')
-      .eq('quote_id', quoteId);
-
-    if (items) {
-      const total = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
-      await db.from('quotes').update({
-        total_amount: total,
-        deposit_amount: Math.round(total * 0.3),
-        balance_amount: total - Math.round(total * 0.3),
-        updated_at: new Date().toISOString()
-      }).eq('id', quoteId);
-    }
-  } catch (err) {
-    console.error('重算總金額失敗:', err);
+// ==================== PHOTOS ====================
+function renderPhotos() {
+  const wrap = document.getElementById('photoGroupedView');
+  wrap.innerHTML = '';
+  let filtered = photos;
+  if (photoSearchTerm) {
+    filtered = filtered.filter(p =>
+      p.title.toLowerCase().includes(photoSearchTerm.toLowerCase()) ||
+      p.client.toLowerCase().includes(photoSearchTerm.toLowerCase()) ||
+      p.year.includes(photoSearchTerm) ||
+      p.notes.toLowerCase().includes(photoSearchTerm.toLowerCase())
+    );
   }
-}
 
-// ========== SETUP COMPLETE MODAL ==========
-let pendingSetupOrderId = null;
-let pickedTeardownDate = null;
+  if (filtered.length === 0) {
+    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--ink-faint);font-size:13px;">目前沒有照片<br><br>員工搭設時拍照上傳，照片會自動出現在這裡</div>';
+    return;
+  }
 
-function openSetupModal(orderId) {
-  pendingSetupOrderId = orderId;
-  const o = orders.find(x => String(x.id) === String(orderId));
-  if (!o) { console.error('找不到訂單:', orderId); return; }
-
-  // Generate quick date options: event date, event+1, event+2
-  const eventDate = new Date(o.eventDate.replace(/\//g, '-'));
-  const options = [
-    { date: new Date(eventDate), label: '活動當天' },
-    { date: new Date(eventDate.getTime() + 86400000), label: '活動後一天' },
-    { date: new Date(eventDate.getTime() + 86400000 * 2), label: '活動後兩天' }
-  ];
-
-  const weekLabels = ['日', '一', '二', '三', '四', '五', '六'];
-
-  const pickerRow = document.getElementById('datePickerRow');
-  pickerRow.innerHTML = '';
-  options.forEach((opt, idx) => {
-    const btn = document.createElement('button');
-    btn.className = 'date-picker-option' + (idx === 1 ? ' selected' : '');
-    const m = opt.date.getMonth() + 1;
-    const d = opt.date.getDate();
-    const w = weekLabels[opt.date.getDay()];
-    btn.innerHTML = `
-      <span class="date-picker-option-day">${m}/${d}</span>
-      <span class="date-picker-option-week">週${w} · ${opt.label}</span>
-    `;
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.date-picker-option').forEach(x => x.classList.remove('selected'));
-      btn.classList.add('selected');
-      pickedTeardownDate = `${opt.date.getFullYear()}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
-      document.getElementById('customDate').value = '';
+  if (photoGroupBy === 'all') {
+    makePhotoSection(wrap, '全部紀錄', filtered);
+  } else if (photoGroupBy === 'year') {
+    const groups = {};
+    filtered.forEach(p => { if (!groups[p.year]) groups[p.year] = []; groups[p.year].push(p); });
+    Object.keys(groups).sort((a,b) => b.localeCompare(a)).forEach(year => {
+      makePhotoSection(wrap, `${year} 年`, groups[year]);
     });
-    pickerRow.appendChild(btn);
-  });
-
-  // default to option 2 (event+1)
-  pickedTeardownDate = `${options[1].date.getFullYear()}/${String(options[1].date.getMonth()+1).padStart(2,'0')}/${String(options[1].date.getDate()).padStart(2,'0')}`;
-
-  document.getElementById('customDate').addEventListener('change', (e) => {
-    if (e.target.value) {
-      document.querySelectorAll('.date-picker-option').forEach(x => x.classList.remove('selected'));
-      pickedTeardownDate = e.target.value.replace(/-/g, '/');
-    }
-  });
-
-  document.getElementById('setupCompleteModal').classList.add('visible');
-}
-
-function closeSetupModal() {
-  document.getElementById('setupCompleteModal').classList.remove('visible');
-}
-
-document.getElementById('confirmSetupBtn').addEventListener('click', async () => {
-  const o = orders.find(x => String(x.id) === String(pendingSetupOrderId));
-  if (!o || !pickedTeardownDate) return;
-
-  document.getElementById('confirmSetupBtn').disabled = true;
-  document.getElementById('confirmSetupBtn').textContent = '同步中...';
-
-  const notes = document.getElementById('setupNotes') ? document.getElementById('setupNotes').value : '';
-  const ok = await markSetupComplete(o.dispatch_id, pickedTeardownDate, notes);
-
-  if (ok) {
-    o.status = 'pending-teardown';
-    o.teardownDate = pickedTeardownDate;
-    closeSetupModal();
-    alert(`✓ 搭設完成！\n\n拆除日期：${pickedTeardownDate}\n已同步到雲端，老闆已收到通知。`);
-    renderAll();
-    showDetail(pendingSetupOrderId);
-  }
-
-  document.getElementById('confirmSetupBtn').disabled = false;
-  document.getElementById('confirmSetupBtn').textContent = '確認完成';
-});
-
-// ========== TEARDOWN DONE MODAL ==========
-let pendingTeardownId = null;
-
-function openTeardownModal(orderId) {
-  pendingTeardownId = orderId;
-  const o = orders.find(x => String(x.id) === String(orderId));
-  if (!o) return;
-  document.getElementById('teardownClientName').textContent = `${o.client} · 器材已撤場`;
-  document.getElementById('teardownDoneModal').classList.add('visible');
-}
-
-function closeTeardownModal() {
-  document.getElementById('teardownDoneModal').classList.remove('visible');
-}
-
-document.getElementById('confirmTeardownBtn').addEventListener('click', async () => {
-  const o = orders.find(x => String(x.id) === String(pendingTeardownId));
-  if (!o) return;
-
-  document.getElementById('confirmTeardownBtn').disabled = true;
-  document.getElementById('confirmTeardownBtn').textContent = '同步中...';
-
-  const ok = await markTeardownComplete(o.dispatch_id);
-
-  if (ok) {
-    o.status = 'done';
-    closeTeardownModal();
-    alert(`✓ 已拆除完成！\n\n${o.client} 訂單已歸檔\n老闆那邊會自動更新為「未收款」。`);
-    renderAll();
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelector('[data-tab="history"]').classList.add('active');
-    document.getElementById('page-history').classList.add('active');
-    window.scrollTo({top: 0, behavior: 'smooth'});
-  }
-
-  document.getElementById('confirmTeardownBtn').disabled = false;
-  document.getElementById('confirmTeardownBtn').textContent = '確認完成';
-});
-
-// ========== INIT ==========
-function updateCounts() {
-  document.getElementById('countSetup').textContent = orders.filter(o => o.status === 'pending-setup' || o.status === 'in-setup').length;
-  document.getElementById('countTeardown').textContent = orders.filter(o => o.status === 'pending-teardown').length;
-  document.getElementById('countHistory').textContent = orders.filter(o => o.status === 'done').length;
-}
-
-function renderAll() {
-  updateCounts();
-  renderSetup();
-  renderTeardown();
-  renderHistory();
-}
-
-// 雲端初始化
-async function init() {
-  console.log('🚀 員工版啟動中...');
-  await loadItemLibrary();
-  const ok = await loadOrdersFromCloud();
-  if (ok) {
-    renderAll();
-    console.log('🎉 員工版載入完成！');
   } else {
-    console.log('⚠️ 雲端連線失敗，顯示空白頁面');
-    renderAll();
+    const groups = {};
+    filtered.forEach(p => { if (!groups[p.client]) groups[p.client] = []; groups[p.client].push(p); });
+    Object.keys(groups).sort().forEach(client => {
+      makePhotoSection(wrap, client, groups[client]);
+    });
   }
+}
+
+function makePhotoSection(wrap, title, items) {
+  const h = document.createElement('div');
+  h.className = 'photo-section-title';
+  h.innerHTML = `<span>${highlightText(title, photoSearchTerm)}</span><span class="photo-section-count">${items.length} 張</span>`;
+  wrap.appendChild(h);
+
+  const grid = document.createElement('div');
+  grid.className = 'photo-grid';
+  items.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'photo-card';
+    const parts = (p.date || '').split('/');
+    const dateLabel = parts.length >= 3 ? `${p.year} · ${parts[1]}/${parts[2]}` : p.date || '';
+
+    const thumbContent = p.url
+      ? `<img src="${p.url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />`
+      : `<svg viewBox="0 0 100 100" fill="none" stroke="#8b6f47" stroke-width="0.8">
+          <path d="M10 70 L50 30 L90 70 Z"/><path d="M50 30 L50 70"/><path d="M10 70 L90 70"/>
+        </svg>`;
+
+    card.innerHTML = `
+      <div class="photo-thumb">
+        ${thumbContent}
+        <div class="photo-badge">${dateLabel}</div>
+      </div>
+      <div class="photo-info">
+        <div class="photo-title">${highlightText(p.title, photoSearchTerm)}</div>
+        <div class="photo-meta">${highlightText(p.client, photoSearchTerm)}</div>
+      </div>
+    `;
+
+    card.addEventListener('click', () => {
+      if (p.url) {
+        window.open(p.url, '_blank');
+      } else {
+        alert(`${p.title}\n${p.date} · ${p.client}\n\n${p.notes}`);
+      }
+    });
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+}
+
+document.getElementById('photoSearch').addEventListener('input', (e) => {
+  photoSearchTerm = e.target.value.trim();
+  document.getElementById('photoSearchClear').classList.toggle('visible', !!photoSearchTerm);
+  renderPhotos();
+});
+
+document.getElementById('photoSearchClear').addEventListener('click', () => {
+  document.getElementById('photoSearch').value = '';
+  photoSearchTerm = '';
+  document.getElementById('photoSearchClear').classList.remove('visible');
+  renderPhotos();
+});
+
+document.querySelectorAll('.photo-group-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.photo-group-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    photoGroupBy = b.dataset.group;
+    renderPhotos();
+  });
+});
+
+// INIT — 先載入雲端資料，再渲染畫面
+async function init() {
+  console.log('🎬 [4/6] init() 被呼叫');
+  document.getElementById('loadingText').textContent = '連接雲端資料庫中...';
+  const ok = await loadItemsFromCloud();
+
+  if (!ok) {
+    console.error('❌ 載入失敗，停止後續動作');
+    document.getElementById('loadingText').textContent = '⚠ 連線失敗，請按 F12 看主控台';
+    showError('連線失敗');
+    return;
+  }
+
+  console.log('🎨 準備畫面中...');
+  document.getElementById('loadingText').textContent = '準備畫面中...';
+
+  updateExamplePrices();
+  await loadPhotosFromCloud();
+  await loadCorrections();
+  await loadQuotesFromCloud();
+
+  renderFilterTabs();
+  renderQuotesList();
+  renderPhotos();
+  renderLibraryFilter();
+  renderLibrary();
+
+  setTimeout(() => {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    showSynced('雲端已連線');
+    console.log('🎉 全部完成！');
+  }, 300);
+}
+
+// 更新三個範例的價格為雲端最新值
+function updateExamplePrices() {
+  examples.forEach(ex => {
+    ex.parsed.items.forEach(item => {
+      const found = itemLibrary.find(x => x.name === item.name);
+      if (found) item.price = found.price;
+    });
+  });
 }
 
 init();
 
-// ========== 下拉重新整理 ==========
-let touchStartY = 0;
-let isPulling = false;
+// ========== 定時檢查員工端更新（每 30 秒）==========
+let lastCheckTime = new Date().toISOString();
 
-document.addEventListener('touchstart', (e) => {
-  if (window.scrollY === 0) {
-    touchStartY = e.touches[0].clientY;
-    isPulling = true;
+async function checkWorkerUpdates() {
+  try {
+    // 查詢最近有 worker_notes 更新的 quotes
+    const { data, error } = await db
+      .from('quotes')
+      .select('id, client_name, worker_notes, updated_at')
+      .gt('updated_at', lastCheckTime)
+      .not('worker_notes', 'is', null)
+      .neq('worker_notes', '')
+      .order('updated_at', { ascending: false })
+      .limit(5);
+
+    if (error || !data || data.length === 0) return;
+
+    // 更新檢查時間
+    lastCheckTime = new Date().toISOString();
+
+    // 每筆變更跳通知
+    data.forEach(q => {
+      if (q.worker_notes && q.worker_notes.startsWith('[現場調整]')) {
+        const msg = `📋 嘉豐回報：${q.client_name}\n\n${q.worker_notes}\n\n請到報價列表查看最新資訊`;
+
+        // 瀏覽器通知（如果有授權）
+        if (Notification.permission === 'granted') {
+          new Notification('隆泰帳篷 · 現場調整', {
+            body: `${q.client_name}\n${q.worker_notes}`,
+            icon: '🎪'
+          });
+        }
+
+        // App 內通知
+        showWorkerAlert(q.client_name, q.worker_notes);
+      }
+    });
+  } catch (err) {
+    // 靜默失敗，不影響使用
   }
-}, { passive: true });
+}
 
-document.addEventListener('touchmove', (e) => {
-  if (!isPulling) return;
-  const diff = e.touches[0].clientY - touchStartY;
-  const pullEl = document.getElementById('pullRefresh');
-  if (diff > 30 && window.scrollY === 0) {
-    pullEl.classList.add('visible');
-    pullEl.textContent = diff > 80 ? '↑ 放開重新整理' : '↓ 繼續下拉';
-  } else {
-    pullEl.classList.remove('visible');
-  }
-}, { passive: true });
+function showWorkerAlert(client, notes) {
+  // 建立通知條
+  const bar = document.createElement('div');
+  bar.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+    background: #2a4564; color: #fff; padding: 14px 18px;
+    font-size: 14px; line-height: 1.5;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: slideDown 0.3s ease-out;
+    cursor: pointer;
+  `;
+  bar.innerHTML = `
+    <div style="font-weight:600;margin-bottom:4px;">📋 嘉豐現場回報</div>
+    <div>${client}：${notes}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px;">點擊關閉</div>
+  `;
+  bar.addEventListener('click', () => bar.remove());
+  document.body.appendChild(bar);
 
-document.addEventListener('touchend', async (e) => {
-  if (!isPulling) return;
-  isPulling = false;
-  const pullEl = document.getElementById('pullRefresh');
-  if (pullEl.classList.contains('visible') && pullEl.textContent.includes('放開')) {
-    pullEl.textContent = '🔄 重新載入中...';
-    pullEl.classList.add('loading');
-    await loadOrdersFromCloud();
-    renderAll();
-    pullEl.textContent = '✓ 已更新';
-    setTimeout(() => {
-      pullEl.classList.remove('visible', 'loading');
-    }, 800);
-  } else {
-    pullEl.classList.remove('visible');
-  }
-});
+  // 8 秒後自動消失
+  setTimeout(() => { if (bar.parentNode) bar.remove(); }, 8000);
+}
 
-// click outside modal to close
-document.getElementById('setupCompleteModal').addEventListener('click', (e) => {
-  if (e.target.id === 'setupCompleteModal') closeSetupModal();
-});
-document.getElementById('teardownDoneModal').addEventListener('click', (e) => {
-  if (e.target.id === 'teardownDoneModal') closeTeardownModal();
-});
+// 請求瀏覽器通知權限
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+// 每 30 秒檢查一次
+setInterval(async () => {
+  await checkWorkerUpdates();
+  await loadQuotesFromCloud();
+  renderFilterTabs();
+  renderQuotesList();
+}, 30000);
 
 </script>
 </body>
