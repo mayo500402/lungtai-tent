@@ -3092,6 +3092,33 @@ async function acceptAndDispatch(id) {
   await dispatchQuote(id);
 }
 
+// 確保日期格式正確（YYYY-MM-DD）
+function fixDateFormat(dateStr) {
+  if (!dateStr || dateStr === '—') return null;
+  // 移除多餘空白
+  let d = dateStr.trim();
+  // 如果有 空格 或 - 或 ~ 分隔的範圍（如 "4/20 - 4/22"），只取第一個日期
+  d = d.split(/[\s~\-至到]/).filter(s => s.match(/\d/))[0] || d;
+  // 把 / 換成 -
+  d = d.replace(/\//g, '-');
+  // 處理不同格式
+  const parts = d.split('-').map(p => p.trim()).filter(Boolean);
+  const currentYear = new Date().getFullYear();
+
+  if (parts.length === 3) {
+    // YYYY-MM-DD 或 MM-DD-YYYY
+    let [a, b, c] = parts;
+    if (a.length === 4) return `${a}-${b.padStart(2,'0')}-${c.padStart(2,'0')}`;
+    if (c.length === 4) return `${c}-${a.padStart(2,'0')}-${b.padStart(2,'0')}`;
+    return `${a}-${b.padStart(2,'0')}-${c.padStart(2,'0')}`;
+  } else if (parts.length === 2) {
+    // MM-DD（缺年份，補上今年）
+    let [m, dd] = parts;
+    return `${currentYear}-${m.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  return null;
+}
+
 async function dispatchQuote(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
@@ -3112,8 +3139,8 @@ async function dispatchQuote(id) {
           client_tax_id: q.tax || '',
           client_contact: q.contact || '',
           client_phone: q.phone || '',
-          setup_date: q.setupDate ? q.setupDate.replace(/\//g, '-') : null,
-          event_date_start: q.eventDate ? q.eventDate.replace(/\//g, '-').split(' ')[0] : null,
+          setup_date: fixDateFormat(q.setupDate),
+          event_date_start: fixDateFormat(q.eventDate),
           total_amount: q.amount,
           payment_method: q.paymentMethod || '現金',
           status: 'dispatched',
