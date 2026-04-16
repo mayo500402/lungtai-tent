@@ -2030,7 +2030,7 @@ body {
     <div class="share-sheet-title">傳送到 LINE</div>
     <div class="share-sheet-sub">選擇傳送格式 · 開啟後請選擇客戶</div>
 
-    <button class="share-option" onclick="shareAsImage()">
+    <button class="share-option" onclick="event.preventDefault(); event.stopPropagation(); shareAsImage(); return false;" type="button">
       <div class="share-option-icon img">IMG</div>
       <div class="share-option-text">
         <div class="share-option-title">傳送圖片（推薦）</div>
@@ -2038,7 +2038,7 @@ body {
       </div>
     </button>
 
-    <button class="share-option" onclick="shareAsPDF()">
+    <button class="share-option" onclick="event.preventDefault(); event.stopPropagation(); shareAsPDF(); return false;" type="button">
       <div class="share-option-icon pdf">PDF</div>
       <div class="share-option-text">
         <div class="share-option-title">傳送 PDF 檔</div>
@@ -3122,6 +3122,19 @@ function renderQuote(d) {
 
 // ==================== LINE SHARE ====================
 function openShareSheet() {
+  // 先記住當前要分享的報價單元素
+  const voiceDoc = document.querySelector('#quoteDoc');
+  const detailDoc = document.querySelector('#detailContent .quote-doc');
+
+  if (detailDoc && document.getElementById('page-detail').classList.contains('active')) {
+    window._shareTarget = detailDoc;
+  } else if (voiceDoc && voiceDoc.classList.contains('visible')) {
+    window._shareTarget = voiceDoc;
+  } else {
+    alert('請先產生一張報價單');
+    return;
+  }
+
   document.getElementById('shareSheet').classList.add('visible');
   document.getElementById('shareStatus').classList.remove('visible');
 }
@@ -3134,25 +3147,11 @@ document.getElementById('shareSheet').addEventListener('click', (e) => {
   if (e.target.id === 'shareSheet') closeShareSheet();
 });
 
-// 找到當前可見的報價單元素（語音開單頁或詳細頁）
-function findVisibleQuoteDoc() {
-  // 先找語音開單頁的
-  const voiceDoc = document.querySelector('#quoteDoc');
-  if (voiceDoc && voiceDoc.classList.contains('visible') && document.getElementById('page-voice').classList.contains('active')) {
-    return voiceDoc;
-  }
-  // 再找詳細頁的
-  const detailDoc = document.querySelector('#detailContent .quote-doc');
-  if (detailDoc) return detailDoc;
-  // fallback
-  return voiceDoc;
-}
-
 function getClientName() {
   if (currentQuoteData && currentQuoteData.client) {
-    return currentQuoteData.client.name || currentQuoteData.client || '客戶';
+    const name = currentQuoteData.client.name || currentQuoteData.client;
+    if (typeof name === 'string' && name !== '—') return name;
   }
-  // 從詳細頁的標題取
   const titleEl = document.querySelector('#detailContent .page-title');
   if (titleEl) return titleEl.textContent || '客戶';
   return '客戶';
@@ -3164,20 +3163,21 @@ async function shareAsImage() {
   status.textContent = '📸 產生圖片中，請稍候...';
 
   try {
-    const el = findVisibleQuoteDoc();
-    if (!el) { status.textContent = '✗ 找不到報價單，請先產生一張'; return; }
+    const el = window._shareTarget;
+    if (!el) { status.textContent = '✗ 找不到報價單'; return; }
 
     // 隱藏不該出現在圖片上的元素
-    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle'];
+    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
     const hidden = [];
     hideSelectors.forEach(sel => {
       el.querySelectorAll(sel).forEach(node => {
-        if (node.style.display !== 'none') {
-          hidden.push({ node, prev: node.style.display });
-          node.style.display = 'none';
-        }
+        hidden.push({ node, prev: node.style.display });
+        node.style.display = 'none';
       });
     });
+    // 也隱藏 share sheet 自己（避免截到）
+    const sheet = document.getElementById('shareSheet');
+    sheet.style.visibility = 'hidden';
 
     const canvas = await html2canvas(el, {
       scale: 2,
@@ -3186,10 +3186,13 @@ async function shareAsImage() {
       logging: false
     });
 
-    // 還原隱藏的元素
+    // 還原
     hidden.forEach(h => h.node.style.display = h.prev);
+    sheet.style.visibility = '';
 
     canvas.toBlob(async (blob) => {
+      if (!blob) { status.textContent = '✗ 圖片產生失敗'; return; }
+
       const client = getClientName();
       const filename = `報價單-${client}-${new Date().toISOString().slice(0,10)}.png`;
 
@@ -3208,19 +3211,19 @@ async function shareAsImage() {
             return;
           } catch (err) {
             if (err.name === 'AbortError') {
-              status.textContent = '已取消分享';
+              status.textContent = '已取消';
               return;
             }
           }
         }
       }
 
-      // 桌面或不支援分享 → 直接下載
+      // 桌面或不支援 → 直接下載
       downloadBlob(blob, filename);
-      status.textContent = '✓ 圖片已下載！可手動傳 LINE';
+      status.textContent = '✓ 圖片已下載到你的電腦！';
     }, 'image/png');
   } catch (err) {
-    status.textContent = '✗ 產生失敗，請重試';
+    status.textContent = '✗ 產生失敗：' + err.message;
     console.error('shareAsImage error:', err);
   }
 }
@@ -3231,20 +3234,20 @@ async function shareAsPDF() {
   status.textContent = '📄 產生 PDF 中，請稍候...';
 
   try {
-    const el = findVisibleQuoteDoc();
-    if (!el) { status.textContent = '✗ 找不到報價單，請先產生一張'; return; }
+    const el = window._shareTarget;
+    if (!el) { status.textContent = '✗ 找不到報價單'; return; }
 
     // 隱藏內部元素
-    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle'];
+    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
     const hidden = [];
     hideSelectors.forEach(sel => {
       el.querySelectorAll(sel).forEach(node => {
-        if (node.style.display !== 'none') {
-          hidden.push({ node, prev: node.style.display });
-          node.style.display = 'none';
-        }
+        hidden.push({ node, prev: node.style.display });
+        node.style.display = 'none';
       });
     });
+    const sheet = document.getElementById('shareSheet');
+    sheet.style.visibility = 'hidden';
 
     const canvas = await html2canvas(el, {
       scale: 2,
@@ -3252,8 +3255,8 @@ async function shareAsPDF() {
       logging: false
     });
 
-    // 還原
     hidden.forEach(h => h.node.style.display = h.prev);
+    sheet.style.visibility = '';
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -3263,7 +3266,6 @@ async function shareAsPDF() {
     const imgProps = pdf.getImageProperties(imgData);
     const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-    // 如果報價單很長，分頁處理
     if (imgHeight <= pdfMaxHeight) {
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
     } else {
@@ -3279,7 +3281,6 @@ async function shareAsPDF() {
     const filename = `報價單-${client}-${new Date().toISOString().slice(0,10)}.pdf`;
     const pdfBlob = pdf.output('blob');
 
-    // iPhone Safari 支援 Web Share API
     if (navigator.share && navigator.canShare) {
       const file = new File([pdfBlob], filename, { type: 'application/pdf' });
       if (navigator.canShare({ files: [file] })) {
@@ -3294,18 +3295,17 @@ async function shareAsPDF() {
           return;
         } catch (err) {
           if (err.name === 'AbortError') {
-            status.textContent = '已取消分享';
+            status.textContent = '已取消';
             return;
           }
         }
       }
     }
 
-    // 桌面 → 直接下載
     pdf.save(filename);
-    status.textContent = '✓ PDF 已下載！可手動傳 LINE';
+    status.textContent = '✓ PDF 已下載到你的電腦！';
   } catch (err) {
-    status.textContent = '✗ 產生失敗，請重試';
+    status.textContent = '✗ 產生失敗：' + err.message;
     console.error('shareAsPDF error:', err);
   }
 }
