@@ -1247,8 +1247,9 @@ document.getElementById('backBtn').addEventListener('click', () => {
 
 // ========== RENDER ==========
 function formatDateDiff(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) return { text: '—', cls: '' };
   const d = new Date(dateStr.replace(/\//g, '-'));
+  if (isNaN(d.getTime())) return { text: dateStr, cls: '' };
   const diffDays = Math.round((d - today) / 86400000);
   if (diffDays === 0) return { text: '今天', cls: 'today' };
   if (diffDays === 1) return { text: '明天', cls: 'tomorrow' };
@@ -1580,6 +1581,110 @@ function showDetail(id) {
 
 // 真的拍照上傳到 Supabase Storage
 async function uploadPhoto(input, orderId, photoType) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o) return;
+
+  // 顯示上傳中
+  const typeLabel = photoType === 'final' ? '搭設完成照' : '過程照片';
+  const statusMsg = document.createElement('div');
+  statusMsg.style.cssText = 'text-align:center;padding:12px;color:var(--worker);font-size:13px;font-weight:500;';
+  statusMsg.textContent = `📤 上傳${typeLabel}中...`;
+  input.closest('.photo-upload-area').insertBefore(statusMsg, input.closest('.photo-upload-row').nextSibling);
+
+  try {
+    // 壓縮圖片
+    const compressed = await compressImage(file, 1200, 0.8);
+
+    // 產生檔名
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `orders/${o.quote_id || orderId}/${photoType}_${timestamp}.${ext}`;
+
+    // 上傳到 Supabase Storage
+    const { data, error } = await db.storage
+      .from('photos')
+      .upload(path, compressed, {
+        contentType: compressed.type || 'image/jpeg',
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    // 取得公開網址
+    const { data: urlData } = db.storage
+      .from('photos')
+      .getPublicUrl(path);
+
+    const publicUrl = urlData.publicUrl;
+
+    // 寫入 photos 資料表
+    const { error: dbErr } = await db
+      .from('photos')
+      .insert([{
+        quote_id: o.quote_id || null,
+        storage_path: path,
+        photo_type: photoType,
+        notes: '',
+        uploaded_by: 'worker'
+      }]);
+
+    if (dbErr) console.error('寫入 photos 表失敗:', dbErr);
+
+    // 更新本地資料
+    o.photos.push({
+      id: 'p' + timestamp,
+      label: photoType,
+      note: '',
+      url: publicUrl
+    });
+
+    statusMsg.textContent = `✓ ${typeLabel}已上傳！`;
+    statusMsg.style.color = 'var(--green)';
+    setTimeout(() => {
+      statusMsg.remove();
+      showDetail(orderId);
+    }, 1000);
+
+    console.log(`✅ 照片已上傳: ${path}`);
+  } catch (err) {
+    console.error('上傳失敗:', err);
+    statusMsg.textContent = `✗ 上傳失敗：${err.message}`;
+    statusMsg.style.color = 'var(--alert)';
+    setTimeout(() => statusMsg.remove(), 3000);
+  }
+
+  // 清空 input
+  input.value = '';
+}
+
+// 壓縮圖片
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) {
+          h = Math.round(h * maxWidth / w);
+          w = maxWidth;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => { resolve(blob); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 // ========== 品項調整（客戶臨時增減）==========
 
@@ -1599,7 +1704,6 @@ async function adjustQty(orderId, itemIdx, delta) {
 
   item.qty = newQty;
 
-  // 更新雲端 quote_items
   if (o.quote_id) {
     try {
       const { data: qItems } = await db
@@ -1614,9 +1718,7 @@ async function adjustQty(orderId, itemIdx, delta) {
           .eq('id', qItems[itemIdx].id);
       }
 
-      // 重算總金額
       await recalcQuoteTotal(o.quote_id);
-
       console.log(`✅ 品項調整：${item.name} ${oldQty} → ${newQty}`);
     } catch (err) {
       console.error('品項調整失敗:', err);
@@ -1682,7 +1784,6 @@ async function addItemOnSite(orderId) {
         sort_order: o.items.length - 1
       }]);
 
-      // 在 quotes 表加筆記
       await db.from('quotes').update({
         worker_notes: `[現場調整] 新增 ${name.trim()} ×${qty}`,
         updated_at: new Date().toISOString()
@@ -1718,115 +1819,6 @@ async function recalcQuoteTotal(quoteId) {
   } catch (err) {
     console.error('重算總金額失敗:', err);
   }
-}
-  const file = input.files[0];
-  if (!file) return;
-
-  const o = orders.find(x => String(x.id) === String(orderId));
-  if (!o) return;
-
-  // 顯示上傳中
-  const typeLabel = photoType === 'final' ? '搭設完成照' : '過程照片';
-  const statusMsg = document.createElement('div');
-  statusMsg.style.cssText = 'text-align:center;padding:12px;color:var(--worker);font-size:13px;font-weight:500;';
-  statusMsg.textContent = `📤 上傳${typeLabel}中...`;
-  input.closest('.photo-upload-area').insertBefore(statusMsg, input.closest('.photo-upload-row').nextSibling);
-
-  try {
-    // 壓縮圖片（手機照片很大，壓到 1200px 寬度以內）
-    const compressed = await compressImage(file, 1200, 0.8);
-
-    // 產生檔名
-    const timestamp = Date.now();
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `orders/${o.quote_id || orderId}/${photoType}_${timestamp}.${ext}`;
-
-    // 上傳到 Supabase Storage
-    const { data, error } = await db.storage
-      .from('photos')
-      .upload(path, compressed, {
-        contentType: compressed.type || 'image/jpeg',
-        upsert: false
-      });
-
-    if (error) throw error;
-
-    // 取得公開網址
-    const { data: urlData } = db.storage
-      .from('photos')
-      .getPublicUrl(path);
-
-    const publicUrl = urlData.publicUrl;
-
-    // 寫入 photos 資料表
-    const { error: dbErr } = await db
-      .from('photos')
-      .insert([{
-        quote_id: o.quote_id || null,
-        storage_path: path,
-        photo_type: photoType,
-        notes: '',
-        uploaded_by: 'worker'
-      }]);
-
-    if (dbErr) console.error('寫入 photos 表失敗:', dbErr);
-
-    // 更新本地資料
-    o.photos.push({
-      id: 'p' + timestamp,
-      label: photoType,
-      note: '',
-      url: publicUrl
-    });
-
-    statusMsg.textContent = `✓ ${typeLabel}已上傳！`;
-    statusMsg.style.color = 'var(--green)';
-    setTimeout(() => {
-      statusMsg.remove();
-      showDetail(orderId);
-    }, 1000);
-
-    console.log(`✅ 照片已上傳: ${path}`);
-  } catch (err) {
-    console.error('上傳失敗:', err);
-    statusMsg.textContent = `✗ 上傳失敗：${err.message}`;
-    statusMsg.style.color = 'var(--alert)';
-    setTimeout(() => statusMsg.remove(), 3000);
-  }
-
-  // 清空 input（讓同一個按鈕可以再次選擇）
-  input.value = '';
-}
-
-// 壓縮圖片（避免手機原圖太大佔滿免費空間）
-function compressImage(file, maxWidth, quality) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let w = img.width;
-        let h = img.height;
-
-        if (w > maxWidth) {
-          h = Math.round(h * maxWidth / w);
-          w = maxWidth;
-        }
-
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-
-        canvas.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/jpeg', quality);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
 }
 
 // ========== SETUP COMPLETE MODAL ==========
