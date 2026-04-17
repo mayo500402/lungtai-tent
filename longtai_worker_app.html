@@ -1341,11 +1341,11 @@ function renderSetup() {
       <div class="order-card-info">
         <div class="info-row">
           <span class="info-icon">◉</span>
-          <div class="info-text"><span class="label">地址</span>${o.address}</div>
+          <div class="info-text"><span class="label">地址</span>${o.address || '—'}</div>
         </div>
         <div class="info-row">
           <span class="info-icon">☎</span>
-          <div class="info-text"><span class="label">聯絡</span>${o.contact} · <a href="tel:${o.phone}" class="phone-link" onclick="event.stopPropagation()">${o.phone}</a></div>
+          <div class="info-text"><span class="label">聯絡</span>${o.contact || '—'} · <a href="tel:${o.phone}" class="phone-link" onclick="event.stopPropagation()">${o.phone}</a></div>
         </div>
         <div class="info-row">
           <span class="info-icon">▤</span>
@@ -1355,11 +1355,11 @@ function renderSetup() {
       <div class="order-card-dates">
         <div class="date-chunk">
           <div class="date-chunk-label">搭設日期</div>
-          <div class="date-chunk-value ${setupDiff.cls}">${o.setupDate.substring(5)} · ${setupDiff.text}</div>
+          <div class="date-chunk-value ${setupDiff.cls}">${(o.setupDate && o.setupDate.length > 5 ? o.setupDate.substring(5) : o.setupDate || '—')} · ${setupDiff.text}</div>
         </div>
         <div class="date-chunk">
           <div class="date-chunk-label">活動日期</div>
-          <div class="date-chunk-value ${eventDiff.cls}">${o.eventDate.substring(5)} · ${eventDiff.text}</div>
+          <div class="date-chunk-value ${eventDiff.cls}">${(o.eventDate && o.eventDate.length > 5 ? o.eventDate.substring(5) : o.eventDate || '—')} · ${eventDiff.text}</div>
         </div>
       </div>
       <div class="order-card-actions">
@@ -1389,6 +1389,8 @@ function renderTeardown() {
   items.forEach(o => {
     const teardownDiff = formatDateDiff(o.teardownDate);
     const urgent = (teardownDiff.text === '今天' || teardownDiff.text.includes('前'));
+    const eventDisplay = o.eventDate ? (o.eventDate.length > 5 ? (o.eventDate && o.eventDate.length > 5 ? o.eventDate.substring(5) : o.eventDate || '—') : o.eventDate) : '—';
+    const teardownDisplay = o.teardownDate ? (o.teardownDate.length > 5 ? (o.teardownDate && o.teardownDate.length > 5 ? o.teardownDate.substring(5) : o.teardownDate || '—') : o.teardownDate) : '—';
 
     const card = document.createElement('div');
     card.className = `order-card ongoing ${urgent ? 'urgent' : ''}`;
@@ -1400,11 +1402,11 @@ function renderTeardown() {
       <div class="order-card-info">
         <div class="info-row">
           <span class="info-icon">◉</span>
-          <div class="info-text"><span class="label">地址</span>${o.address}</div>
+          <div class="info-text"><span class="label">地址</span>${o.address || '—'}</div>
         </div>
         <div class="info-row">
           <span class="info-icon">☎</span>
-          <div class="info-text"><span class="label">聯絡</span>${o.contact} · <a href="tel:${o.phone}" class="phone-link" onclick="event.stopPropagation()">${o.phone}</a></div>
+          <div class="info-text"><span class="label">聯絡</span>${o.contact || '—'} · <a href="tel:${o.phone || ''}" class="phone-link" onclick="event.stopPropagation()">${o.phone || '—'}</a></div>
         </div>
         <div class="info-row">
           <span class="info-icon">▤</span>
@@ -1414,16 +1416,16 @@ function renderTeardown() {
       <div class="order-card-dates">
         <div class="date-chunk">
           <div class="date-chunk-label">活動日期</div>
-          <div class="date-chunk-value">${o.eventDate.substring(5)}</div>
+          <div class="date-chunk-value">${eventDisplay}</div>
         </div>
         <div class="date-chunk">
           <div class="date-chunk-label">拆除日期</div>
-          <div class="date-chunk-value ${teardownDiff.cls}">${o.teardownDate.substring(5)} · ${teardownDiff.text}</div>
+          <div class="date-chunk-value ${teardownDiff.cls}">${teardownDisplay} · ${teardownDiff.text}</div>
         </div>
       </div>
       <div class="order-card-actions">
         <button class="action-btn action-btn-sec">查看詳細</button>
-        <button class="action-btn action-btn-success" onclick="event.stopPropagation(); openTeardownModal('${o.id}')">✓ 確認拆除</button>
+        <button class="action-btn action-btn-success" onclick="event.stopPropagation(); openTeardownModal(${o.id})">✓ 確認拆除</button>
       </div>
     `;
     card.addEventListener('click', () => showDetail(o.id));
@@ -1451,7 +1453,7 @@ function renderHistory() {
     item.innerHTML = `
       <div class="history-top">
         <div class="history-client">${o.client}</div>
-        <div class="history-date">${o.eventDate.substring(5)}</div>
+        <div class="history-date">${(o.eventDate && o.eventDate.length > 5 ? o.eventDate.substring(5) : o.eventDate || '—')}</div>
       </div>
       <div class="history-meta">
         <span>${o.items.length} 種品項</span>
@@ -1560,7 +1562,7 @@ function showDetail(id) {
       <div class="detail-info-grid">
         <div class="detail-field">
           <span class="detail-field-label">地址</span>
-          <span class="detail-field-value">${o.address}</span>
+          <span class="detail-field-value">${o.address || '—'}</span>
         </div>
         <div class="detail-field">
           <span class="detail-field-label">聯絡人</span>
