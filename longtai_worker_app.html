@@ -1341,7 +1341,7 @@ function renderSetup() {
       <div class="order-card-info">
         <div class="info-row">
           <span class="info-icon">◉</span>
-          <div class="info-text"><span class="label">地址</span>${o.address || '—'}</div>
+          <div class="info-text"><span class="label">地點</span>${renderAddress(o.address)}</div>
         </div>
         <div class="info-row">
           <span class="info-icon">☎</span>
@@ -1402,7 +1402,7 @@ function renderTeardown() {
       <div class="order-card-info">
         <div class="info-row">
           <span class="info-icon">◉</span>
-          <div class="info-text"><span class="label">地址</span>${o.address || '—'}</div>
+          <div class="info-text"><span class="label">地點</span>${renderAddress(o.address)}</div>
         </div>
         <div class="info-row">
           <span class="info-icon">☎</span>
@@ -1562,7 +1562,7 @@ function showDetail(id) {
       <div class="detail-info-grid">
         <div class="detail-field">
           <span class="detail-field-label">地址</span>
-          <span class="detail-field-value">${o.address || '—'}</span>
+          <span class="detail-field-value">${renderAddress(o.address)}</span>
         </div>
         <div class="detail-field">
           <span class="detail-field-label">聯絡人</span>
@@ -1739,6 +1739,16 @@ function compressImage(file, maxWidth, quality) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+// 地點顯示（支援 Google Maps 連結）
+function renderAddress(addr) {
+  if (!addr || addr === '—') return '—';
+  if (addr.match(/google\.com\/maps|goo\.gl|maps\.app/)) {
+    return '<a href="' + addr + '" target="_blank" style="color:#2a4564;text-decoration:underline;font-weight:500;" onclick="event.stopPropagation()">📍 點此開啟地圖導航</a>';
+  }
+  // 普通地址也加一個 Google Maps 搜尋連結
+  return addr + ' <a href="https://www.google.com/maps/search/' + encodeURIComponent(addr) + '" target="_blank" style="color:#2a4564;font-size:11px;text-decoration:underline;" onclick="event.stopPropagation()">📍導航</a>';
 }
 
 // ========== 品項調整（客戶臨時增減）==========

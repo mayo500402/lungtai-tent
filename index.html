@@ -1885,6 +1885,13 @@ body {
             </div>
           </div>
 
+          <div class="event-dates" id="addressRow" style="display:none;">
+            <div class="event-date-item" style="flex:1;">
+              <div class="event-date-label">Location · 搭設地點</div>
+              <div class="event-date-value" id="addressValue" style="font-size:13px;">—</div>
+            </div>
+          </div>
+
           <div class="divider-labeled">Items · 報價明細</div>
           <div class="items-wrap" id="itemsWrap"></div>
 
@@ -2093,10 +2100,11 @@ ${itemCatalog}
 2. 日期：今天是 ${new Date().toISOString().slice(0,10)}，如果客戶說「5/10」這種，補上年份變 2026/05/10
 3. 進場日期（setupDate）：客戶要你搬去搭的日期
 4. 活動日期（eventDate）：活動當天或當天起迄
-5. 品項（items）：從口語抓出品項名稱和數量。品項名稱必須**完全符合**品項庫中的名字（找最接近的），qty 是數量，price 從品項庫對應查出
-6. 訂金比例（deposit）：「三成」=0.3、「五成」=0.5、「一半」=0.5，預設 0
-7. 備註（remark）：如果客戶有特別要求放在這裡，沒有就空字串
-8. 發包（subcontract）：如果老闆說「發包給XXX」「外包給XXX」「轉給XXX做」，代表這是發包訂單
+5. 地點（address）：搭設地點或地址。如果老闆說了地名、地址、或 Google Maps 連結，都填在這裡。沒提到就填空字串
+6. 品項（items）：從口語抓出品項名稱和數量。品項名稱必須**完全符合**品項庫中的名字（找最接近的），qty 是數量，price 從品項庫對應查出
+7. 訂金比例（deposit）：「三成」=0.3、「五成」=0.5、「一半」=0.5，預設 0
+8. 備註（remark）：如果客戶有特別要求放在這裡，沒有就空字串
+9. 發包（subcontract）：如果老闆說「發包給XXX」「外包給XXX」「轉給XXX做」，代表這是發包訂單
    - isSubcontract: true
    - subcontractorName: 同業名稱
    - subcontractorCost: 如果有提到付給同業多少錢就填，沒提到填 0
@@ -2108,6 +2116,7 @@ ${itemCatalog}
   "client": { "name": "客戶名", "tax": "統編或—", "contact": "聯絡人或—", "phone": "電話或—" },
   "setupDate": "YYYY/MM/DD",
   "eventDate": "YYYY/MM/DD",
+  "address": "搭設地點",
   "items": [{ "name": "品項名", "qty": 數字, "price": 數字 }],
   "deposit": 0.3,
   "remark": "備註文字",
@@ -2471,6 +2480,7 @@ async function loadQuotesFromCloud() {
         existing.subcontractorName = q.subcontractor_name || existing.subcontractorName || '';
         existing.subcontractorCost = q.subcontractor_cost || existing.subcontractorCost || 0;
         existing.subcontractType = q.subcontract_type || existing.subcontractType || 'margin';
+        existing.address = q.setup_address || existing.address || '';
         // 更新品項（如果員工改了）
         if (q.quote_items && q.quote_items.length > 0) {
           existing.items = q.quote_items.map(i => ({
@@ -2500,6 +2510,7 @@ async function loadQuotesFromCloud() {
           phone: q.client_phone || '—',
           setupDate: q.setup_date || '—',
           eventDate: q.event_date_start || '—',
+          address: q.setup_address || '',
           items: items,
           amount: amount || q.total_amount || 0,
           status: q.status || 'pending',
@@ -2952,6 +2963,7 @@ function saveVoiceQuote() {
     phone: currentQuoteData.client.phone || '—',
     setupDate: currentQuoteData.setupDate,
     eventDate: currentQuoteData.eventDate,
+    address: currentQuoteData.address || '',
     items: [...currentQuoteData.items],
     amount: amount,
     status: 'pending',
@@ -2995,6 +3007,7 @@ function editVoiceQuote() {
     phone: currentQuoteData.client.phone || '—',
     setupDate: currentQuoteData.setupDate,
     eventDate: currentQuoteData.eventDate,
+    address: currentQuoteData.address || '',
     items: [...currentQuoteData.items],
     amount: amount,
     status: 'pending',
@@ -3197,6 +3210,18 @@ function renderDetail() {
           </div>
         </div>
 
+        <div class="event-dates">
+          <div class="event-date-item" style="flex:1;">
+            <div class="event-date-label">Location · 搭設地點</div>
+            <div class="event-date-value" style="font-size:13px;">${detailEditMode
+              ? ed(q.address, 'address', '輸入地點或貼 Google Maps 連結')
+              : (q.address && q.address.match(/google\.com\/maps|goo\.gl|maps\.app/)
+                ? `<a href="${q.address}" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 點此開啟地圖</a>`
+                : (q.address || '—'))
+            }</div>
+          </div>
+        </div>
+
         <div class="divider-labeled">Items · 報價明細</div>
         <div class="items-wrap">${itemsHTML}</div>
 
@@ -3300,6 +3325,7 @@ function saveField(field, value) {
       contact: 'client_contact',
       phone: 'client_phone',
       setupDate: 'setup_date',
+      address: 'setup_address',
       eventDate: 'event_date_start',
       remark: 'remark',
       paymentMethod: 'payment_method'
@@ -3552,6 +3578,7 @@ async function acceptQuote(id) {
           client_phone: q.phone || '',
           setup_date: fixDateFormat(q.setupDate),
           event_date_start: fixDateFormat(q.eventDate),
+          setup_address: q.address || '',
           total_amount: q.amount,
           payment_method: q.paymentMethod || '現金',
           status: 'accepted',
@@ -3653,6 +3680,7 @@ async function dispatchQuote(id, skipConfirm = false) {
             client_phone: q.phone || '',
             setup_date: fixDateFormat(q.setupDate),
             event_date_start: fixDateFormat(q.eventDate),
+            setup_address: q.address || '',
             total_amount: q.amount,
             payment_method: q.paymentMethod || '現金',
             status: 'dispatched',
@@ -3740,6 +3768,21 @@ function renderQuote(d) {
   document.getElementById('clientPhone').textContent = d.client.phone || '—';
   document.getElementById('setupDate').textContent = d.setupDate;
   document.getElementById('eventDate').textContent = d.eventDate;
+
+  // 地點
+  const addressRow = document.getElementById('addressRow');
+  const addressValue = document.getElementById('addressValue');
+  if (d.address && d.address !== '—' && d.address !== '') {
+    addressRow.style.display = '';
+    // 如果是 Google Maps 連結，顯示為可點擊的連結
+    if (d.address.includes('google.com/maps') || d.address.includes('goo.gl') || d.address.includes('maps.app')) {
+      addressValue.innerHTML = `<a href="${d.address}" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 點此開啟地圖</a>`;
+    } else {
+      addressValue.textContent = d.address;
+    }
+  } else {
+    addressRow.style.display = 'none';
+  }
 
   const wrap = document.getElementById('itemsWrap');
   wrap.innerHTML = '';
