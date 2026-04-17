@@ -2446,15 +2446,9 @@ const examples = [
 ];
 
 // Saved quotes
-let savedQuotes = [
-  { id: 'q1', no: 'Q20260415-002', client: '永豐銀行尾牙', amount: 187500, status: 'paid', date: '04/15', paymentMethod: '轉帳', items: [{name:'25尺帳篷', qty:3, price:1800},{name:'舞台', qty:1, price:1000},{name:'電燈', qty:20, price:150}], setupDate:'04/14', eventDate:'04/15', contact:'HR林小姐', phone:'02-2345-6789', tax:'12345678', remark:'本報價單有效期 7 天' },
-  { id: 'q2', no: 'Q20260414-001', client: '阿城餐廳婚宴', amount: 62600, status: 'accepted', date: '04/14', paymentMethod: '現金', items: [{name:'31尺白色帳篷', qty:2, price:2500},{name:'塑膠椅子', qty:50, price:10},{name:'長桌+桌巾', qty:10, price:230}], setupDate:'05/10', eventDate:'05/12', contact:'陳老闆', phone:'0922-333-444', tax:'28456789', remark:'帳布限用白色款' },
-  { id: 'q3', no: 'Q20260412-003', client: '大興國小園遊會', amount: 16500, status: 'unpaid', date: '04/12', paymentMethod: '轉帳', items: [{name:'16尺帳篷', qty:10, price:600},{name:'長桌', qty:20, price:200}], setupDate:'04/11', eventDate:'04/12', contact:'王主任', phone:'04-2345-6789', tax:'04567891', remark:'活動已完成，待收尾款' },
-  { id: 'q4', no: 'Q20260410-001', client: '清水巖遶境', amount: 10500, status: 'unpaid', date: '04/10', paymentMethod: '現金', items: [{name:'12尺帳篷', qty:15, price:600},{name:'塑膠椅子', qty:150, price:10}], setupDate:'04/08', eventDate:'04/08-10', contact:'王總幹事', phone:'0933-111-555', tax:'—', remark:'活動已完成，待收款' },
-  { id: 'q5', no: 'Q20260408-002', client: '誠品園遊會', amount: 8600, status: 'pending', date: '04/08', paymentMethod: '轉帳', items: [{name:'歐式帳篷', qty:8, price:600},{name:'長桌', qty:16, price:200}], setupDate:'05/05', eventDate:'05/06', contact:'活動組', phone:'02-8787-1234', tax:'18765432', remark:'待客戶回覆' }
-];
+let savedQuotes = [];
 
-// 從雲端載入所有報價單，合併到 savedQuotes
+// 從雲端載入所有報價單
 async function loadQuotesFromCloud() {
   try {
     const { data, error } = await db
@@ -2560,11 +2554,6 @@ async function loadPhotosFromCloud() {
     console.error('載入照片失敗:', err);
   }
 }
-
-const methodStats = [
-  { name: '現金', amount: 112500, count: 4, pct: 60, color: '#4a6741' },
-  { name: '轉帳', amount: 75000, count: 2, pct: 40, color: '#2a4564' }
-];
 
 const statusMap = {
   pending: { label: '待回覆', cls: 'status-pending' },
@@ -4315,21 +4304,44 @@ document.getElementById('librarySearchClear').addEventListener('click', () => {
 });
 
 // ==================== LEDGER ====================
-const methodList = document.getElementById('methodList');
-methodStats.forEach(m => {
-  const div = document.createElement('div');
-  div.style.cssText = 'background: var(--bg-card); border: 0.5px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;';
-  div.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-      <span style="font-size:14px;">${m.name} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-faint);margin-left:6px;">${m.count} 筆</span></span>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;">NT$ ${m.amount.toLocaleString()}</span>
-    </div>
-    <div style="height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden;">
-      <div style="height:100%;width:${m.pct}%;background:${m.color};"></div>
-    </div>
-  `;
-  methodList.appendChild(div);
-});
+function renderMethodStats() {
+  const methodList = document.getElementById('methodList');
+  methodList.innerHTML = '';
+
+  const activeStatuses = ['paid', 'unpaid', 'dispatched', 'setup-done', 'accepted'];
+  const activeQuotes = savedQuotes.filter(q => activeStatuses.includes(q.status));
+
+  const cashQuotes = activeQuotes.filter(q => q.paymentMethod === '現金');
+  const transferQuotes = activeQuotes.filter(q => q.paymentMethod === '轉帳');
+  const cashAmount = cashQuotes.reduce((s, q) => s + q.amount, 0);
+  const transferAmount = transferQuotes.reduce((s, q) => s + q.amount, 0);
+  const total = cashAmount + transferAmount;
+
+  const methods = [
+    { name: '現金', amount: cashAmount, count: cashQuotes.length, pct: total > 0 ? Math.round(cashAmount / total * 100) : 0, color: '#4a6741' },
+    { name: '轉帳', amount: transferAmount, count: transferQuotes.length, pct: total > 0 ? Math.round(transferAmount / total * 100) : 0, color: '#2a4564' }
+  ];
+
+  methods.forEach(m => {
+    if (m.count === 0) return;
+    const div = document.createElement('div');
+    div.style.cssText = 'background: var(--bg-card); border: 0.5px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+        <span style="font-size:14px;">${m.name} <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-faint);margin-left:6px;">${m.count} 筆</span></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;">NT$ ${m.amount.toLocaleString()}</span>
+      </div>
+      <div style="height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden;">
+        <div style="height:100%;width:${m.pct}%;background:${m.color};"></div>
+      </div>
+    `;
+    methodList.appendChild(div);
+  });
+
+  if (methods.every(m => m.count === 0)) {
+    methodList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--ink-faint);font-size:13px;">目前沒有訂單</div>';
+  }
+}
 
 // ==================== 帳本（動態計算）====================
 function renderStats() {
@@ -4437,6 +4449,7 @@ function renderStats() {
   }
 
   document.getElementById('subcontractStats').innerHTML = selfListHTML + subHTML;
+  renderMethodStats();
 }
 
 // ==================== PHOTOS ====================
