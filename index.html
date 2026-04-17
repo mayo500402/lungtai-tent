@@ -3283,11 +3283,43 @@ function saveField(field, value) {
   const newValue = value.trim();
   q[field] = newValue;
 
-  // 如果修改了客戶名稱、聯絡人、地址等欄位，記錄修正對照
+  // 修正對照（AI 學習）
   if (oldValue && newValue && oldValue !== newValue) {
     const correctionFields = ['client', 'contact', 'address', 'remark'];
     if (correctionFields.includes(field)) {
       saveCorrection(oldValue, newValue, field);
+    }
+  }
+
+  // 同步到雲端
+  if (q.cloud_id) {
+    // 前端欄位名 → 雲端欄位名的對應
+    const fieldMap = {
+      client: 'client_name',
+      tax: 'client_tax_id',
+      contact: 'client_contact',
+      phone: 'client_phone',
+      setupDate: 'setup_date',
+      eventDate: 'event_date_start',
+      remark: 'remark',
+      paymentMethod: 'payment_method'
+    };
+
+    const cloudField = fieldMap[field];
+    if (cloudField) {
+      let cloudValue = newValue;
+      // 日期欄位要轉格式
+      if (field === 'setupDate' || field === 'eventDate') {
+        cloudValue = fixDateFormat(newValue);
+      }
+      db.from('quotes').update({
+        [cloudField]: cloudValue,
+        updated_at: new Date().toISOString()
+      }).eq('id', q.cloud_id).then(() => {
+        console.log(`✅ ${field} 已同步到雲端: ${newValue}`);
+      }).catch(err => {
+        console.error(`❌ ${field} 同步失敗:`, err);
+      });
     }
   }
 }

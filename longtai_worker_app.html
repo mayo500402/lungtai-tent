@@ -1151,9 +1151,9 @@ async function loadOrdersFromCloud() {
       let workerStatus = 'pending-setup';
       if (d.status === 'teardown-done' || d.status === 'done') {
         workerStatus = 'done';
-      } else if (d.status === 'setup-done' || d.teardown_completed_at) {
+      } else if (d.teardown_completed_at) {
         workerStatus = 'done';
-      } else if (d.setup_completed_at) {
+      } else if (d.status === 'setup-done' || d.setup_completed_at) {
         workerStatus = 'pending-teardown';
       }
 
