@@ -3295,7 +3295,6 @@ function updateItem(idx, field, value) {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) return;
   q.items[idx][field] = value;
-  // If name changed, try auto-fill price from library
   if (field === 'name') {
     const found = itemLibrary.find(x => x.name === value);
     if (found && found.price > 0) {
@@ -3303,6 +3302,7 @@ function updateItem(idx, field, value) {
     }
   }
   recalcAmount(q);
+  syncItemsToCloud(q);
 }
 
 function deleteItem(idx) {
@@ -3311,8 +3311,7 @@ function deleteItem(idx) {
   if (q.items.length <= 1) { alert('至少保留一個品項'); return; }
   q.items.splice(idx, 1);
   recalcAmount(q);
-  renderDetail();
-  // re-enter edit mode
+  syncItemsToCloud(q);
   detailEditMode = true;
   renderDetail();
 }
@@ -3321,7 +3320,35 @@ function addItem() {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) return;
   q.items.push({ name: '', qty: 1, price: 0 });
+  syncItemsToCloud(q);
   renderDetail();
+}
+
+// 老闆改品項後同步到雲端
+async function syncItemsToCloud(q) {
+  if (!q.cloud_id) return;
+  try {
+    // 刪掉舊品項，重新寫入
+    await db.from('quote_items').delete().eq('quote_id', q.cloud_id);
+    const rows = q.items.filter(i => i.name).map((i, idx) => ({
+      quote_id: q.cloud_id,
+      item_name: i.name,
+      quantity: i.qty || 0,
+      unit_price: i.price || 0,
+      sort_order: idx
+    }));
+    if (rows.length > 0) await db.from('quote_items').insert(rows);
+
+    // 更新總金額
+    await db.from('quotes').update({
+      total_amount: q.amount,
+      updated_at: new Date().toISOString()
+    }).eq('id', q.cloud_id);
+
+    console.log('✅ 品項已同步到雲端');
+  } catch (err) {
+    console.error('品項同步失敗:', err);
+  }
 }
 
 function recalcAmount(q) {
@@ -4258,21 +4285,23 @@ function renderStats() {
   const monthLabel = `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`;
   document.getElementById('statsMonth').textContent = `${monthLabel} · 本月概覽`;
 
-  // 分類計算
+  // 分類
+  const activeStatuses = ['paid', 'unpaid', 'dispatched', 'setup-done', 'accepted'];
   const selfQuotes = savedQuotes.filter(q => !q.isSubcontract);
   const subQuotes = savedQuotes.filter(q => q.isSubcontract);
 
   const selfPaid = selfQuotes.filter(q => q.status === 'paid').reduce((s, q) => s + q.amount, 0);
   const selfUnpaid = selfQuotes.filter(q => q.status === 'unpaid').reduce((s, q) => s + q.amount, 0);
-  const selfTotal = selfQuotes.filter(q => ['paid', 'unpaid', 'dispatched', 'setup-done', 'accepted'].includes(q.status));
-  const selfRate = selfTotal.length > 0 ? Math.round(selfTotal.length / selfQuotes.length * 100) : 0;
+  const selfActive = selfQuotes.filter(q => activeStatuses.includes(q.status));
+  const selfRate = selfQuotes.length > 0 ? Math.round(selfActive.length / selfQuotes.length * 100) : 0;
 
   const subMarginTotal = subQuotes
-    .filter(q => q.subcontractType === 'margin' && ['paid', 'unpaid', 'accepted', 'dispatched'].includes(q.status))
+    .filter(q => q.subcontractType === 'margin' && activeStatuses.includes(q.status))
     .reduce((s, q) => s + (q.amount - (q.subcontractorCost || 0)), 0);
-  const subCount = subQuotes.filter(q => ['paid', 'unpaid', 'accepted', 'dispatched'].includes(q.status)).length;
+  const subCount = subQuotes.filter(q => activeStatuses.includes(q.status)).length;
   const subReferralCount = subQuotes.filter(q => q.subcontractType === 'referral').length;
 
+  // 統計卡
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat-card highlight">
       <div class="stat-label">自營已收款</div>
@@ -4286,16 +4315,43 @@ function renderStats() {
     <div class="stat-card">
       <div class="stat-label">成交率</div>
       <div class="stat-value">${selfRate}%</div>
-      <div class="stat-delta">${selfTotal.length}/${selfQuotes.length} 單</div>
+      <div class="stat-delta">${selfActive.length}/${selfQuotes.length} 單</div>
     </div>
   `;
 
-  // 發包區塊
+  // 自營明細列表
+  const selfActiveList = selfQuotes.filter(q => activeStatuses.includes(q.status));
+  let selfListHTML = '';
+  if (selfActiveList.length > 0) {
+    selfListHTML = `
+      <div style="margin-top:16px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-faint);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Self-operated · 自營明細</div>
+        ${selfActiveList.map(q => {
+          const statusLabel = statusMap[q.status] ? statusMap[q.status].label : q.status;
+          const statusCls = q.status === 'paid' ? 'color:var(--green)' : q.status === 'unpaid' ? 'color:var(--accent)' : 'color:var(--ink-soft)';
+          return `<div style="background:var(--bg-card);border:0.5px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:14px;font-weight:500;">${q.client}</div>
+              <div style="font-size:11px;color:var(--ink-faint);">${q.no} · ${q.date}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;">NT$ ${q.amount.toLocaleString()}</div>
+              <div style="font-size:11px;${statusCls}">${statusLabel}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // 發包區塊 + 明細
+  let subHTML = '';
   if (subQuotes.length > 0) {
-    document.getElementById('subcontractStats').innerHTML = `
-      <div style="background:var(--bg-card);border-radius:14px;padding:16px;border:0.5px solid var(--line);box-shadow:var(--shadow);">
+    const subActiveList = subQuotes.filter(q => activeStatuses.includes(q.status));
+    subHTML = `
+      <div style="background:var(--bg-card);border-radius:14px;padding:16px;border:0.5px solid var(--line);box-shadow:var(--shadow);margin-top:16px;">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-faint);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">Subcontract · 發包收入</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div>
             <div style="font-size:12px;color:var(--ink-soft);">發包差價利潤</div>
             <div style="font-size:20px;font-weight:600;color:#2a4564;">NT$ ${subMarginTotal.toLocaleString()}</div>
@@ -4306,11 +4362,29 @@ function renderStats() {
             ${subReferralCount > 0 ? `<div style="font-size:11px;color:var(--ink-faint);">其中 ${subReferralCount} 筆純轉介</div>` : ''}
           </div>
         </div>
+        ${subActiveList.length > 0 ? `
+          <div style="border-top:0.5px solid var(--line);padding-top:10px;">
+            ${subActiveList.map(q => {
+              const margin = q.subcontractType === 'margin' ? q.amount - (q.subcontractorCost || 0) : 0;
+              const typeLabel = q.subcontractType === 'referral' ? '純轉介' : `利潤 ${margin.toLocaleString()}`;
+              return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--line-soft);">
+                <div>
+                  <div style="font-size:13px;">${q.client}</div>
+                  <div style="font-size:11px;color:var(--ink-faint);">→ ${q.subcontractorName || '同業'} · ${typeLabel}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;">NT$ ${q.amount.toLocaleString()}</div>
+                  ${q.subcontractType === 'margin' ? `<div style="font-size:11px;color:#2a4564;">賺 ${margin.toLocaleString()}</div>` : ''}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        ` : ''}
       </div>
     `;
-  } else {
-    document.getElementById('subcontractStats').innerHTML = '';
   }
+
+  document.getElementById('subcontractStats').innerHTML = selfListHTML + subHTML;
 }
 
 // ==================== PHOTOS ====================
