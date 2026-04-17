@@ -1919,8 +1919,8 @@ body {
         </div>
 
         <div class="quote-actions">
+          <button class="btn btn-secondary" onclick="voiceAppend()">🎤 繼續補充</button>
           <button class="btn btn-secondary" onclick="editVoiceQuote()">✏ 編輯內容</button>
-          <button class="btn btn-secondary">匯出 PDF</button>
           <button class="btn btn-primary" onclick="saveVoiceQuote()">存檔</button>
         </div>
       </div>
@@ -1974,25 +1974,12 @@ body {
     <!-- LEDGER -->
     <section class="page" id="page-ledger">
       <h1 class="page-title">帳本</h1>
-      <p class="page-sub">April 2026 · 本月概覽</p>
+      <p class="page-sub" id="statsMonth">本月概覽</p>
 
-      <div class="stats-grid">
-        <div class="stat-card highlight">
-          <div class="stat-label">本月已收款</div>
-          <div class="stat-value">NT$ 187,500</div>
-          <div class="stat-delta">↑ 比上月多 22%</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">未收款</div>
-          <div class="stat-value">112,500</div>
-          <div class="stat-delta negative">3 張報價</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">成交率</div>
-          <div class="stat-value">75%</div>
-          <div class="stat-delta">6/8 單</div>
-        </div>
+      <div class="stats-grid" id="statsGrid">
       </div>
+
+      <div id="subcontractStats" style="margin-top:16px;"></div>
 
       <h3 class="section-heading">
         收款方式 <span class="section-heading-side">Method</span>
@@ -2104,6 +2091,12 @@ ${itemCatalog}
 5. 品項（items）：從口語抓出品項名稱和數量。品項名稱必須**完全符合**品項庫中的名字（找最接近的），qty 是數量，price 從品項庫對應查出
 6. 訂金比例（deposit）：「三成」=0.3、「五成」=0.5、「一半」=0.5，預設 0
 7. 備註（remark）：如果客戶有特別要求放在這裡，沒有就空字串
+8. 發包（subcontract）：如果老闆說「發包給XXX」「外包給XXX」「轉給XXX做」，代表這是發包訂單
+   - isSubcontract: true
+   - subcontractorName: 同業名稱
+   - subcontractorCost: 如果有提到付給同業多少錢就填，沒提到填 0
+   - subcontractType: 如果老闆說「不賺」「不抽」「直接付給他」就填 "referral"，否則填 "margin"
+   - 如果沒提到發包，isSubcontract 填 false，其他三個欄位不用填
 
 【只回傳 JSON，不要加任何說明文字，不要用 markdown 包裝】：
 {
@@ -2112,7 +2105,11 @@ ${itemCatalog}
   "eventDate": "YYYY/MM/DD",
   "items": [{ "name": "品項名", "qty": 數字, "price": 數字 }],
   "deposit": 0.3,
-  "remark": "備註文字"
+  "remark": "備註文字",
+  "isSubcontract": false,
+  "subcontractorName": "",
+  "subcontractorCost": 0,
+  "subcontractType": "margin"
 }
 
 【老闆說的話】：
@@ -2471,6 +2468,10 @@ async function loadQuotesFromCloud() {
         existing.status = q.status;
         existing.amount = q.total_amount || existing.amount;
         existing.cloud_id = q.id;
+        existing.isSubcontract = q.is_subcontract || existing.isSubcontract || false;
+        existing.subcontractorName = q.subcontractor_name || existing.subcontractorName || '';
+        existing.subcontractorCost = q.subcontractor_cost || existing.subcontractorCost || 0;
+        existing.subcontractType = q.subcontract_type || existing.subcontractType || 'margin';
         // 更新品項（如果員工改了）
         if (q.quote_items && q.quote_items.length > 0) {
           existing.items = q.quote_items.map(i => ({
@@ -2506,7 +2507,11 @@ async function loadQuotesFromCloud() {
           date: date,
           paymentMethod: q.payment_method || '現金',
           remark: q.remark || '',
-          worker_notes: q.worker_notes || ''
+          worker_notes: q.worker_notes || '',
+          isSubcontract: q.is_subcontract || false,
+          subcontractorName: q.subcontractor_name || '',
+          subcontractorCost: q.subcontractor_cost || 0,
+          subcontractType: q.subcontract_type || 'margin'
         });
       }
     });
@@ -2734,6 +2739,193 @@ async function runAIParse(inputText) {
   }
 }
 
+// ========== 語音追加 / 修正 ==========
+function voiceAppend() {
+  if (!currentQuoteData) { alert('請先產生一張報價單'); return; }
+
+  // 顯示追加輸入區
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,22,20,0.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card);border-radius:16px;max-width:420px;width:100%;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+      <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:500;margin-bottom:6px;">🎤 繼續補充 / 修正</div>
+      <div style="font-size:12px;color:var(--ink-faint);margin-bottom:14px;">對同一張報價單追加品項、修改數量、更正客戶名稱等</div>
+
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">
+        目前報價單：<strong>${currentQuoteData.client?.name || '—'}</strong>，${currentQuoteData.items?.length || 0} 個品項
+      </div>
+
+      <textarea id="appendInput" placeholder="例如：&#10;・再加電燈六盞、長桌十張&#10;・客戶名稱改成圍仔內&#10;・帳篷改成三座不是兩座&#10;・訂金改五成&#10;・備註加上場地從後門進" style="width:100%;min-height:80px;padding:12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
+
+      <button id="appendMicBtn" style="width:100%;padding:10px;margin-bottom:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;cursor:pointer;">🎤 用語音輸入</button>
+
+      <div style="display:flex;gap:8px;">
+        <button id="appendCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg-card);font-family:inherit;font-size:14px;cursor:pointer;">取消</button>
+        <button id="appendConfirm" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">🤖 AI 合併更新</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // 取消
+  document.getElementById('appendCancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  // 語音輸入
+  document.getElementById('appendMicBtn').addEventListener('click', () => {
+    if (!speechSupported) { alert('瀏覽器不支援語音辨識'); return; }
+    const btn = document.getElementById('appendMicBtn');
+    if (btn.dataset.recording === 'true') {
+      recognition.stop();
+      btn.dataset.recording = 'false';
+      btn.textContent = '🎤 用語音輸入';
+    } else {
+      btn.dataset.recording = 'true';
+      btn.textContent = '⏹ 點此停止錄音...';
+      btn.style.background = '#fde2dc';
+
+      const appendRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      appendRecognition.lang = 'zh-TW';
+      appendRecognition.continuous = true;
+      appendRecognition.interimResults = true;
+      let finalT = '';
+
+      appendRecognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) finalT += event.results[i][0].transcript;
+          else interim += event.results[i][0].transcript;
+        }
+        document.getElementById('appendInput').value = finalT + interim;
+      };
+      appendRecognition.onend = () => {
+        btn.dataset.recording = 'false';
+        btn.textContent = '🎤 用語音輸入';
+        btn.style.background = '';
+        document.getElementById('appendInput').value = finalT;
+      };
+      appendRecognition.start();
+
+      // 存起來讓停止按鈕能用
+      btn._recognition = appendRecognition;
+      const origStop = recognition.stop;
+      document.getElementById('appendMicBtn').addEventListener('click', () => {
+        if (appendRecognition) appendRecognition.stop();
+      }, { once: true });
+    }
+  });
+
+  // 確認 — 送去 AI 合併
+  document.getElementById('appendConfirm').addEventListener('click', async () => {
+    const appendText = document.getElementById('appendInput').value.trim();
+    if (!appendText) { alert('請輸入要補充或修正的內容'); return; }
+
+    const btn = document.getElementById('appendConfirm');
+    btn.disabled = true;
+    btn.textContent = '🤖 AI 處理中...';
+
+    try {
+      const merged = await parseAppendWithAI(currentQuoteData, appendText);
+      overlay.remove();
+      renderQuote(merged);
+    } catch (err) {
+      alert('AI 合併失敗：' + err.message);
+      btn.disabled = false;
+      btn.textContent = '🤖 AI 合併更新';
+    }
+  });
+}
+
+// AI 合併追加內容到現有報價單
+async function parseAppendWithAI(existingData, appendText, modelIndex = 0, retryCount = 0) {
+  const currentModel = GEMINI_MODELS[modelIndex];
+  console.log(`🤖 [${currentModel}] 合併追加:`, appendText);
+
+  const itemCatalog = itemLibrary.map(i => `${i.name}:${i.price}`).join('、');
+
+  const existingJSON = JSON.stringify({
+    client: existingData.client,
+    setupDate: existingData.setupDate,
+    eventDate: existingData.eventDate,
+    items: existingData.items,
+    deposit: existingData.deposit,
+    remark: existingData.remark
+  }, null, 2);
+
+  const prompt = `你是「隆泰帳篷企業社」的智慧報價助理。老闆之前已經建了一張報價單，現在要追加或修正內容。
+
+【品項庫與單價】：
+${itemCatalog}
+
+【現有報價單（JSON）】：
+${existingJSON}
+
+【老闆的追加/修正指令】：
+${appendText}
+
+【你的任務】：
+1. 把老闆說的追加/修正內容，合併到現有報價單裡
+2. 如果是「新增品項」→ 加到 items 陣列
+3. 如果是「修改數量」→ 找到對應品項改 qty
+4. 如果是「刪除品項」→ 從 items 移除
+5. 如果是「修改客戶名稱」→ 改 client.name
+6. 如果是「修改日期」→ 改 setupDate 或 eventDate
+7. 如果是「修改訂金」→ 改 deposit
+8. 如果是「加備註」→ 追加到 remark
+9. 品項名稱必須完全符合品項庫的名字，price 從品項庫查
+
+【回傳完整的合併後 JSON（格式同上），不要加任何說明文字】：
+{
+  "client": { "name": "客戶名", "tax": "統編或—", "contact": "聯絡人或—", "phone": "電話或—" },
+  "setupDate": "YYYY/MM/DD",
+  "eventDate": "YYYY/MM/DD",
+  "items": [{ "name": "品項名", "qty": 數字, "price": 數字 }],
+  "deposit": 0.3,
+  "remark": "備註文字"
+}${getCorrectionHints()}`;
+
+  try {
+    const response = await fetch(getGeminiEndpoint(currentModel), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
+      })
+    });
+
+    if (!response.ok) {
+      if ([429, 500, 503].includes(response.status) && modelIndex < GEMINI_MODELS.length - 1) {
+        return parseAppendWithAI(existingData, appendText, modelIndex + 1, 0);
+      }
+      throw new Error(`AI 回應 ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!aiText) throw new Error('AI 沒有回傳內容');
+
+    console.log(`✅ [${currentModel}] 合併成功:`, aiText);
+    const parsed = JSON.parse(aiText);
+
+    // 確保價格正確
+    if (parsed.items && Array.isArray(parsed.items)) {
+      parsed.items.forEach(item => {
+        const found = itemLibrary.find(x => x.name === item.name);
+        if (found) item.price = found.price;
+      });
+    }
+
+    return parsed;
+  } catch (err) {
+    if (modelIndex < GEMINI_MODELS.length - 1) {
+      return parseAppendWithAI(existingData, appendText, modelIndex + 1, 0);
+    }
+    throw err;
+  }
+}
+
 document.getElementById('payCashBtn').addEventListener('click', () => {
   currentPaymentMethod = '現金';
   document.getElementById('payCashBtn').classList.add('active');
@@ -2753,6 +2945,10 @@ function saveVoiceQuote() {
   const no = `Q${dateStr}-${String(Math.floor(Math.random()*900)+100)}`;
   const id = 'voice-' + Date.now();
   const amount = currentQuoteData.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+  const isSub = currentQuoteData.isSubcontract || false;
+  const subCost = currentQuoteData.subcontractorCost || 0;
+  const margin = isSub ? (amount - subCost) : amount;
+
   const newQuote = {
     id: id,
     no: no,
@@ -2767,7 +2963,11 @@ function saveVoiceQuote() {
     status: 'pending',
     date: String(today.getMonth()+1).padStart(2,'0') + '/' + String(today.getDate()).padStart(2,'0'),
     paymentMethod: currentPaymentMethod,
-    remark: currentQuoteData.remark || ''
+    remark: currentQuoteData.remark || '',
+    isSubcontract: isSub,
+    subcontractorName: currentQuoteData.subcontractorName || '',
+    subcontractorCost: subCost,
+    subcontractType: currentQuoteData.subcontractType || 'margin'
   };
   savedQuotes.unshift(newQuote);
   renderFilterTabs();
@@ -2780,7 +2980,8 @@ function saveVoiceQuote() {
   document.getElementById('page-quotes').classList.add('active');
   window.scrollTo({top: 0, behavior: 'smooth'});
 
-  alert(`✓ 報價單已存檔！\n\n${newQuote.client} · NT$ ${amount.toLocaleString()}\n\n狀態：待回覆\n點「✓ 成交」→「派工」就能派給嘉豐。`);
+  const subInfo = isSub ? `\n類型：發包給 ${newQuote.subcontractorName}\n你的利潤：NT$ ${margin.toLocaleString()}` : '';
+  alert(`✓ 報價單已存檔！\n\n${newQuote.client} · NT$ ${amount.toLocaleString()}${subInfo}\n\n狀態：待回覆`);
 }
 
 function editVoiceQuote() {
@@ -2901,13 +3102,23 @@ function renderDetail() {
   if (q.status === 'unpaid') {
     bottomBtn = `<button class="btn btn-success" onclick="confirmPay('${q.id}')">✓ 確認收款</button>`;
   } else if (q.status === 'accepted') {
-    bottomBtn = `<button class="btn" style="background: var(--blue); color: #fff;" onclick="dispatchQuote('${q.id}')">📤 派工給嘉豐</button>`;
-  } else if (q.status === 'dispatched') {
-    bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 嘉豐施工中</button>`;
+    if (q.isSubcontract) {
+      bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已成交 · 發包給 ${q.subcontractorName || '同業'}</button>`;
+    } else {
+      bottomBtn = `<button class="btn" style="background: var(--blue); color: #fff;" onclick="dispatchQuote('${q.id}')">📤 派工給嘉豐</button>`;
+    }
+  } else if (q.status === 'dispatched' || q.status === 'setup-done') {
+    if (q.isSubcontract) {
+      bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已發包 · ${q.subcontractorName || '同業'}施工中</button>`;
+    } else {
+      bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 嘉豐施工中</button>`;
+    }
   } else if (q.status === 'pending') {
-    bottomBtn = `
-      <button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 成交並派工給嘉豐</button>
-    `;
+    if (q.isSubcontract) {
+      bottomBtn = `<button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 成交（發包給 ${q.subcontractorName || '同業'}）</button>`;
+    } else {
+      bottomBtn = `<button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 成交並派工給嘉豐</button>`;
+    }
   }
 
   const ed = (text, field, placeholder = '—') => {
@@ -3213,9 +3424,61 @@ function confirmPay(id) {
 async function acceptQuote(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (!confirm(`確認「${q.client}」成交並派工給嘉豐？`)) return;
-  q.status = 'accepted';
-  await dispatchQuote(id, true);
+
+  if (q.isSubcontract) {
+    // 發包單：成交但不派工
+    if (!confirm(`確認「${q.client}」成交？\n\n這是發包訂單（${q.subcontractorName || '同業'}），不會派工給嘉豐。`)) return;
+    q.status = 'accepted';
+    // 存到雲端
+    try {
+      showSyncing('儲存中');
+      const { data: existing } = await db.from('quotes').select('id').eq('quote_no', q.no).maybeSingle();
+      if (existing) {
+        await db.from('quotes').update({
+          status: 'accepted',
+          is_subcontract: true,
+          subcontractor_name: q.subcontractorName || '',
+          subcontractor_cost: q.subcontractorCost || 0,
+          subcontract_type: q.subcontractType || 'margin',
+          updated_at: new Date().toISOString()
+        }).eq('id', existing.id);
+        q.cloud_id = existing.id;
+      } else {
+        const { data: newQ, error } = await db.from('quotes').insert([{
+          quote_no: q.no,
+          client_name: q.client,
+          client_tax_id: q.tax || '',
+          client_contact: q.contact || '',
+          client_phone: q.phone || '',
+          setup_date: fixDateFormat(q.setupDate),
+          event_date_start: fixDateFormat(q.eventDate),
+          total_amount: q.amount,
+          payment_method: q.paymentMethod || '現金',
+          status: 'accepted',
+          remark: q.remark || '',
+          is_subcontract: true,
+          subcontractor_name: q.subcontractorName || '',
+          subcontractor_cost: q.subcontractorCost || 0,
+          subcontract_type: q.subcontractType || 'margin',
+          created_by: 'boss'
+        }]).select();
+        if (!error && newQ) q.cloud_id = newQ[0].id;
+      }
+      showSynced('已成交');
+    } catch (err) {
+      console.error('發包成交失敗:', err);
+      showError('儲存失敗');
+    }
+    renderDetail();
+    renderFilterTabs();
+    renderQuotesList();
+    alert(`✓ 已成交！\n\n發包給 ${q.subcontractorName || '同業'}\n${q.subcontractType === 'referral' ? '純轉介，不賺差價' : '利潤 NT$ ' + (q.amount - (q.subcontractorCost || 0)).toLocaleString()}`);
+  } else {
+    // 自營單：成交 + 派工
+    if (!confirm(`確認「${q.client}」成交並派工給嘉豐？`)) return;
+    q.status = 'accepted';
+    await dispatchQuote(id, true);
+  }
 }
 
 // 一鍵：成交 + 派工（跟 acceptQuote 一樣了）
@@ -3719,35 +3982,57 @@ function renderQuotesList() {
         <button class="btn-mini btn-mini-confirm" data-id="${q.id}">確認收款</button>
       </div>`;
     } else if (q.status === 'accepted') {
-      actionRow = `<div class="quote-item-action">
-        <span class="quote-item-action-hint dispatch">◆ 已成交 · 準備派工</span>
-        <div style="display:flex;gap:6px;">
-          <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳到 LINE')">📨 LINE</button>
-          <button class="btn-mini btn-mini-dispatch" data-id="${q.id}">派工</button>
-        </div>
-      </div>`;
-    } else if (q.status === 'dispatched') {
-      actionRow = `<div class="quote-item-action">
-        <span class="quote-item-action-hint dispatched">✓ 已派給嘉豐 · 施工中</span>
-      </div>`;
+      if (q.isSubcontract) {
+        actionRow = `<div class="quote-item-action">
+          <span class="quote-item-action-hint dispatch">◆ 已成交 · 發包給 ${q.subcontractorName || '同業'}</span>
+        </div>`;
+      } else {
+        actionRow = `<div class="quote-item-action">
+          <span class="quote-item-action-hint dispatch">◆ 已成交 · 準備派工</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳到 LINE')">📨 LINE</button>
+            <button class="btn-mini btn-mini-dispatch" data-id="${q.id}">派工</button>
+          </div>
+        </div>`;
+      }
+    } else if (q.status === 'dispatched' || q.status === 'setup-done') {
+      if (q.isSubcontract) {
+        actionRow = `<div class="quote-item-action">
+          <span class="quote-item-action-hint dispatched">✓ 已發包 · ${q.subcontractorName || '同業'}施工中</span>
+        </div>`;
+      } else {
+        actionRow = `<div class="quote-item-action">
+          <span class="quote-item-action-hint dispatched">✓ 已派給嘉豐 · 施工中</span>
+        </div>`;
+      }
     } else if (q.status === 'pending') {
       actionRow = `<div class="quote-item-action">
         <span class="quote-item-action-hint">◆ 待客戶回覆</span>
         <div style="display:flex;gap:6px;">
           <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳 LINE')">📨 LINE</button>
-          <button class="btn-mini btn-mini-accept" data-id="${q.id}" style="background:var(--green);color:#fff;">✓ 成交派工</button>
+          <button class="btn-mini btn-mini-accept" data-id="${q.id}" style="background:var(--green);color:#fff;">✓ 成交${q.isSubcontract ? '' : '派工'}</button>
         </div>
       </div>`;
     }
 
+    // 發包標記
+    const subTag = q.isSubcontract
+      ? `<span style="background:#2a4564;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px;">發包${q.subcontractorName ? '·' + q.subcontractorName : ''}</span>`
+      : '';
+
+    // 發包單顯示利潤而不是總額
+    const displayAmount = q.isSubcontract && q.subcontractType === 'margin'
+      ? `<div class="quote-item-amount">NT$ ${q.amount.toLocaleString()}<div style="font-size:10px;color:var(--ink-faint);">利潤 ${(q.amount - (q.subcontractorCost || 0)).toLocaleString()}</div></div>`
+      : `<div class="quote-item-amount">NT$ ${q.amount.toLocaleString()}</div>`;
+
     item.innerHTML = `
       <div class="quote-item-head">
-        <div class="quote-item-client">${highlightText(q.client, quoteSearchTerm)}</div>
-        <div class="quote-item-amount">NT$ ${q.amount.toLocaleString()}</div>
+        <div class="quote-item-client">${highlightText(q.client, quoteSearchTerm)}${subTag}</div>
+        ${displayAmount}
       </div>
       <div class="quote-item-meta">
         <span>${highlightText(q.no, quoteSearchTerm)} · ${q.date} <span class="payment-method-tag ${methodTagCls}" style="margin-left:6px">${q.paymentMethod}</span></span>
-        <span class="status-pill ${s.cls}">${s.label}</span>
+        <span class="status-pill ${s ? s.cls : ''}">${s ? s.label : q.status}</span>
       </div>
       ${actionRow}
     `;
@@ -3967,6 +4252,67 @@ methodStats.forEach(m => {
   methodList.appendChild(div);
 });
 
+// ==================== 帳本（動態計算）====================
+function renderStats() {
+  const now = new Date();
+  const monthLabel = `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`;
+  document.getElementById('statsMonth').textContent = `${monthLabel} · 本月概覽`;
+
+  // 分類計算
+  const selfQuotes = savedQuotes.filter(q => !q.isSubcontract);
+  const subQuotes = savedQuotes.filter(q => q.isSubcontract);
+
+  const selfPaid = selfQuotes.filter(q => q.status === 'paid').reduce((s, q) => s + q.amount, 0);
+  const selfUnpaid = selfQuotes.filter(q => q.status === 'unpaid').reduce((s, q) => s + q.amount, 0);
+  const selfTotal = selfQuotes.filter(q => ['paid', 'unpaid', 'dispatched', 'setup-done', 'accepted'].includes(q.status));
+  const selfRate = selfTotal.length > 0 ? Math.round(selfTotal.length / selfQuotes.length * 100) : 0;
+
+  const subMarginTotal = subQuotes
+    .filter(q => q.subcontractType === 'margin' && ['paid', 'unpaid', 'accepted', 'dispatched'].includes(q.status))
+    .reduce((s, q) => s + (q.amount - (q.subcontractorCost || 0)), 0);
+  const subCount = subQuotes.filter(q => ['paid', 'unpaid', 'accepted', 'dispatched'].includes(q.status)).length;
+  const subReferralCount = subQuotes.filter(q => q.subcontractType === 'referral').length;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card highlight">
+      <div class="stat-label">自營已收款</div>
+      <div class="stat-value">NT$ ${selfPaid.toLocaleString()}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">自營未收款</div>
+      <div class="stat-value">${selfUnpaid.toLocaleString()}</div>
+      <div class="stat-delta negative">${selfQuotes.filter(q => q.status === 'unpaid').length} 張</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">成交率</div>
+      <div class="stat-value">${selfRate}%</div>
+      <div class="stat-delta">${selfTotal.length}/${selfQuotes.length} 單</div>
+    </div>
+  `;
+
+  // 發包區塊
+  if (subQuotes.length > 0) {
+    document.getElementById('subcontractStats').innerHTML = `
+      <div style="background:var(--bg-card);border-radius:14px;padding:16px;border:0.5px solid var(--line);box-shadow:var(--shadow);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-faint);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">Subcontract · 發包收入</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <div style="font-size:12px;color:var(--ink-soft);">發包差價利潤</div>
+            <div style="font-size:20px;font-weight:600;color:#2a4564;">NT$ ${subMarginTotal.toLocaleString()}</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--ink-soft);">發包筆數</div>
+            <div style="font-size:20px;font-weight:600;">${subCount} 筆</div>
+            ${subReferralCount > 0 ? `<div style="font-size:11px;color:var(--ink-faint);">其中 ${subReferralCount} 筆純轉介</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    document.getElementById('subcontractStats').innerHTML = '';
+  }
+}
+
 // ==================== PHOTOS ====================
 function renderPhotos() {
   const wrap = document.getElementById('photoGroupedView');
@@ -4091,6 +4437,7 @@ async function init() {
 
   renderFilterTabs();
   renderQuotesList();
+  renderStats();
   renderPhotos();
   renderLibraryFilter();
   renderLibrary();
