@@ -3215,9 +3215,17 @@ function renderDetail() {
             <div class="event-date-label">Location · 搭設地點</div>
             <div class="event-date-value" style="font-size:13px;">${detailEditMode
               ? ed(q.address, 'address', '輸入地點或貼 Google Maps 連結')
-              : (q.address && q.address.match(/google\.com\/maps|goo\.gl|maps\.app/)
-                ? `<a href="${q.address}" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 點此開啟地圖</a>`
-                : (q.address || '—'))
+              : (function(){
+                  if (!q.address || q.address === '—') return '—';
+                  const mm = q.address.match(/^(.+?)\s+(https?:\/\/\S+)$/);
+                  if (mm) return '<a href="'+mm[2]+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 '+mm[1].trim()+'</a>';
+                  if (q.address.match(/google\.com\/maps|goo\.gl|maps\.app/)) {
+                    const pm = q.address.match(/\/place\/([^\/\@\?]+)/);
+                    if (pm) return '<a href="'+q.address+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 '+decodeURIComponent(pm[1]).replace(/\+/g,' ')+'</a>';
+                    return '<a href="'+q.address+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 開啟地圖</a>';
+                  }
+                  return q.address;
+                })()
             }</div>
           </div>
         </div>
@@ -3774,9 +3782,18 @@ function renderQuote(d) {
   const addressValue = document.getElementById('addressValue');
   if (d.address && d.address !== '—' && d.address !== '') {
     addressRow.style.display = '';
-    // 如果是 Google Maps 連結，顯示為可點擊的連結
-    if (d.address.includes('google.com/maps') || d.address.includes('goo.gl') || d.address.includes('maps.app')) {
-      addressValue.innerHTML = `<a href="${d.address}" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 點此開啟地圖</a>`;
+    // 混合格式：名稱 + 連結
+    const mixedMatch = d.address.match(/^(.+?)\s+(https?:\/\/\S+)$/);
+    if (mixedMatch) {
+      addressValue.innerHTML = `📍 <a href="${mixedMatch[2]}" target="_blank" style="color:var(--blue);text-decoration:underline;">${mixedMatch[1].trim()}</a>`;
+    } else if (d.address.includes('google.com/maps') || d.address.includes('goo.gl') || d.address.includes('maps.app')) {
+      // 純連結，嘗試解析名稱
+      const placeMatch = d.address.match(/\/place\/([^\/\@\?]+)/);
+      if (placeMatch) {
+        addressValue.innerHTML = `📍 <a href="${d.address}" target="_blank" style="color:var(--blue);text-decoration:underline;">${decodeURIComponent(placeMatch[1]).replace(/\+/g, ' ')}</a>`;
+      } else {
+        addressValue.innerHTML = `📍 <a href="${d.address}" target="_blank" style="color:var(--blue);text-decoration:underline;">開啟地圖</a>`;
+      }
     } else {
       addressValue.textContent = d.address;
     }
