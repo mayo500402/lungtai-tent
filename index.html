@@ -938,6 +938,7 @@ body {
 .status-dispatched { background: #d5dde8; color: #2a4564; }
 .status-unpaid { background: #fde2dc; color: #a3391e; }
 .status-paid { background: #d5e3db; color: #2a5240; }
+.status-lost { background: #e8e8e8; color: #888; }
 
 .quote-item-action {
   margin-top: 10px;
@@ -2572,7 +2573,8 @@ const statusMap = {
   dispatched: { label: '已派工', cls: 'status-dispatched' },
   'setup-done': { label: '已搭設', cls: 'status-dispatched' },
   unpaid: { label: '未收款', cls: 'status-unpaid' },
-  paid: { label: '已收款', cls: 'status-paid' }
+  paid: { label: '已收款', cls: 'status-paid' },
+  lost: { label: '未成交', cls: 'status-lost' }
 };
 
 // STATE
@@ -3115,10 +3117,15 @@ function renderDetail() {
       bottomBtn = `<button class="btn" style="background: var(--blue); color: #fff;" onclick="dispatchQuote('${q.id}')">📤 派工給嘉豐</button>`;
     }
   } else if (q.status === 'dispatched' || q.status === 'setup-done') {
+    const statusLabel = q.status === 'setup-done' ? '嘉豐已搭設完成' : '已派工 · 嘉豐施工中';
     if (q.isSubcontract) {
-      bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已發包 · ${q.subcontractorName || '同業'}施工中</button>`;
+      bottomBtn = `
+        <button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已發包 · ${q.subcontractorName || '同業'}施工中</button>
+        <button class="btn btn-success" style="margin-top:8px;" onclick="confirmPay('${q.id}')">✓ 確認收款</button>`;
     } else {
-      bottomBtn = `<button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ 已派工 · 嘉豐施工中</button>`;
+      bottomBtn = `
+        <button class="btn" style="background: var(--green-soft); color: #2a5240; font-weight: 600;" disabled>✓ ${statusLabel}</button>
+        <button class="btn btn-success" style="margin-top:8px;" onclick="confirmPay('${q.id}')">✓ 確認收款</button>`;
     }
   } else if (q.status === 'pending') {
     if (q.isSubcontract) {
@@ -3126,6 +3133,9 @@ function renderDetail() {
     } else {
       bottomBtn = `<button class="btn btn-success" onclick="acceptQuote('${q.id}')">✓ 成交並派工給嘉豐</button>`;
     }
+    bottomBtn += `<button class="btn" style="background:#e8e8e8;color:#666;margin-top:8px;" onclick="markLost('${q.id}')">✗ 未成交</button>`;
+  } else if (q.status === 'lost') {
+    bottomBtn = `<button class="btn" style="background:var(--green);color:#fff;" onclick="reactivateQuote('${q.id}')">↩ 重新啟用此報價單</button>`;
   }
   // 所有狀態都加刪除按鈕
   bottomBtn += `<button class="btn" style="background:transparent;color:var(--ink-faint);border:1px solid var(--line);margin-top:8px;" onclick="deleteQuote('${q.id}')">🗑 刪除此報價單</button>`;
@@ -3519,6 +3529,38 @@ function confirmPay(id) {
     renderQuotesList();
     renderStats();
   }
+}
+
+async function deleteQuote(id) {
+
+// 標記為未成交
+function markLost(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`確認「${q.client}」未成交？\n\n報價單會保留在「未成交」分類，不會刪除。`)) return;
+  q.status = 'lost';
+  if (q.cloud_id) {
+    db.from('quotes').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
+  }
+  renderDetail();
+  renderFilterTabs();
+  renderQuotesList();
+  renderStats();
+}
+
+// 重新啟用未成交的報價單
+function reactivateQuote(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`重新啟用「${q.client}」的報價單？\n\n狀態會改回「待回覆」。`)) return;
+  q.status = 'pending';
+  if (q.cloud_id) {
+    db.from('quotes').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
+  }
+  renderDetail();
+  renderFilterTabs();
+  renderQuotesList();
+  renderStats();
 }
 
 async function deleteQuote(id) {
@@ -4001,25 +4043,14 @@ async function shareAsPDF() {
     const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
     if (imgHeight <= pdfMaxHeight) {
-      // 一頁放得下
+      // 一頁放得下，直接放
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
-    } else if (imgHeight <= pdfMaxHeight * 1.3) {
-      // 稍微超出一頁 — 整張縮小到一頁（避免簽名欄被切）
+    } else {
+      // 超出一頁 — 整張等比例縮小到一頁放下
       const scale = pdfMaxHeight / imgHeight;
       const scaledWidth = pdfWidth * scale;
       const offsetX = (pdfWidth - scaledWidth) / 2;
       pdf.addImage(imgData, 'PNG', offsetX, 0, scaledWidth, pdfMaxHeight);
-    } else {
-      // 真的很長 — 分頁（留 10mm 邊距避免切到文字）
-      const pageUsable = pdfMaxHeight - 10;
-      let y = 0;
-      let page = 0;
-      while (y < imgHeight) {
-        if (page > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, -y, pdfWidth, imgHeight);
-        y += pageUsable;
-        page++;
-      }
     }
 
     const client = getClientName();
@@ -4085,12 +4116,13 @@ function matchesQuoteSearch(q) {
 function renderFilterTabs() {
   const filtered = quoteSearchTerm ? savedQuotes.filter(matchesQuoteSearch) : savedQuotes;
   const counts = {
-    all: filtered.length,
+    all: filtered.filter(q => q.status !== 'lost').length,
     accepted: filtered.filter(q => q.status === 'accepted').length,
     dispatched: filtered.filter(q => q.status === 'dispatched' || q.status === 'setup-done').length,
     unpaid: filtered.filter(q => q.status === 'unpaid').length,
     pending: filtered.filter(q => q.status === 'pending').length,
-    paid: filtered.filter(q => q.status === 'paid').length
+    paid: filtered.filter(q => q.status === 'paid').length,
+    lost: filtered.filter(q => q.status === 'lost').length
   };
   const tabs = [
     { key: 'all', label: '全部' },
@@ -4098,7 +4130,8 @@ function renderFilterTabs() {
     { key: 'dispatched', label: '已派工' },
     { key: 'unpaid', label: '未收款' },
     { key: 'pending', label: '待回覆' },
-    { key: 'paid', label: '已收款' }
+    { key: 'paid', label: '已收款' },
+    { key: 'lost', label: '未成交' }
   ];
   const tabsEl = document.getElementById('filterTabs');
   tabsEl.innerHTML = '';
@@ -4122,6 +4155,9 @@ function renderQuotesList() {
     } else {
       results = results.filter(q => q.status === currentFilter);
     }
+  } else {
+    // 「全部」不顯示未成交的
+    results = results.filter(q => q.status !== 'lost');
   }
 
   if (results.length === 0) {
@@ -4159,19 +4195,26 @@ function renderQuotesList() {
       if (q.isSubcontract) {
         actionRow = `<div class="quote-item-action">
           <span class="quote-item-action-hint dispatched">✓ 已發包 · ${q.subcontractorName || '同業'}施工中</span>
+          <button class="btn-mini btn-mini-confirm" data-id="${q.id}">確認收款</button>
         </div>`;
       } else {
+        const statusHint = q.status === 'setup-done' ? '✓ 嘉豐已搭設完成' : '✓ 已派給嘉豐 · 施工中';
         actionRow = `<div class="quote-item-action">
-          <span class="quote-item-action-hint dispatched">✓ 已派給嘉豐 · 施工中</span>
+          <span class="quote-item-action-hint dispatched">${statusHint}</span>
+          <button class="btn-mini btn-mini-confirm" data-id="${q.id}">確認收款</button>
         </div>`;
       }
     } else if (q.status === 'pending') {
       actionRow = `<div class="quote-item-action">
         <span class="quote-item-action-hint">◆ 待客戶回覆</span>
         <div style="display:flex;gap:6px;">
-          <button class="btn-mini btn-mini-line" onclick="event.stopPropagation(); alert('📨 傳 LINE')">📨 LINE</button>
+          <button class="btn-mini" data-id="${q.id}" style="background:#e8e8e8;color:#666;" onclick="event.stopPropagation(); markLost('${q.id}')">✗ 未成交</button>
           <button class="btn-mini btn-mini-accept" data-id="${q.id}" style="background:var(--green);color:#fff;">✓ 成交${q.isSubcontract ? '' : '派工'}</button>
         </div>
+      </div>`;
+    } else if (q.status === 'lost') {
+      actionRow = `<div class="quote-item-action">
+        <span class="quote-item-action-hint" style="color:#888;">✗ 客戶未成交</span>
       </div>`;
     }
 
