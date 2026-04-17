@@ -4136,17 +4136,7 @@ async function checkWorkerUpdates() {
 
     // 每筆變更跳通知
     data.forEach(q => {
-      if (q.worker_notes && q.worker_notes.startsWith('[現場調整]')) {
-        const msg = `📋 嘉豐回報：${q.client_name}\n\n${q.worker_notes}\n\n請到報價列表查看最新資訊`;
-
-        // 瀏覽器通知（如果有授權）
-        if (Notification.permission === 'granted') {
-          new Notification('隆泰帳篷 · 現場調整', {
-            body: `${q.client_name}\n${q.worker_notes}`,
-            icon: '🎪'
-          });
-        }
-
+      if (q.worker_notes && q.worker_notes.startsWith('[')) {
         // App 內通知
         showWorkerAlert(q.client_name, q.worker_notes);
       }

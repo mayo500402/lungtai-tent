@@ -1188,6 +1188,8 @@ async function loadOrdersFromCloud() {
 // 搭設完成 — 更新雲端
 async function markSetupComplete(dispatchId, teardownDate, notes) {
   try {
+    console.log('📤 同步搭設完成... dispatchId=', dispatchId);
+
     const { error } = await db
       .from('dispatches')
       .update({
@@ -1198,26 +1200,38 @@ async function markSetupComplete(dispatchId, teardownDate, notes) {
       })
       .eq('id', dispatchId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('dispatches 更新失敗:', error);
+      throw error;
+    }
 
     // 也更新 quotes 的狀態
     const order = orders.find(o => String(o.dispatch_id) === String(dispatchId));
     if (order && order.quote_id) {
-      await db
+      // 組品項變更訊息
+      const itemsSummary = order.items.map(i => `${i.name} ×${i.qty}`).join('、');
+      const workerNote = notes
+        ? `[搭設完成] ${notes}（品項：${itemsSummary}）`
+        : `[搭設完成]（品項：${itemsSummary}）`;
+
+      const { error: qErr } = await db
         .from('quotes')
         .update({
           status: 'setup-done',
+          worker_notes: workerNote,
           setup_completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', order.quote_id);
+
+      if (qErr) console.error('quotes 更新失敗:', qErr);
     }
 
     console.log('✅ 搭設完成已同步到雲端');
     return true;
   } catch (err) {
     console.error('❌ 更新搭設狀態失敗:', err);
-    alert('同步失敗，請檢查網路');
+    alert('同步失敗：' + err.message + '\n\n請檢查網路後重試');
     return false;
   }
 }
@@ -2019,7 +2033,9 @@ document.getElementById('confirmSetupBtn').addEventListener('click', async () =>
   document.getElementById('confirmSetupBtn').textContent = '同步中...';
 
   const notes = document.getElementById('setupNotes') ? document.getElementById('setupNotes').value : '';
-  const ok = await markSetupComplete(o.dispatch_id, pickedTeardownDate, notes);
+  const dispatchId = o.dispatch_id || o.id;
+  console.log('🔧 搭設完成：dispatch_id=', dispatchId, 'quote_id=', o.quote_id);
+  const ok = await markSetupComplete(dispatchId, pickedTeardownDate, notes);
 
   if (ok) {
     o.status = 'pending-teardown';
