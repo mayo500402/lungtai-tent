@@ -4251,10 +4251,7 @@ function renderQuotesList() {
     item.addEventListener('click', (e) => {
       if (e.target.classList.contains('btn-mini-confirm')) {
         e.stopPropagation();
-        if (confirm(`確認收到 ${q.client} NT$ ${q.amount.toLocaleString()}？`)) {
-          q.status = 'paid';
-          renderFilterTabs(); renderQuotesList();
-        }
+        confirmPay(q.id);
       } else if (e.target.classList.contains('btn-mini-accept')) {
         e.stopPropagation();
         acceptQuote(q.id);
