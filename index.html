@@ -2470,60 +2470,60 @@ async function loadQuotesFromCloud() {
     if (!data || data.length === 0) return;
 
     data.forEach(q => {
-      // 檢查有沒有已存在的（用 quote_no 比對）
-      const existing = savedQuotes.find(s => s.no === q.quote_no);
-      if (existing) {
-        // 更新狀態和金額（雲端最新）
-        existing.status = q.status;
-        existing.amount = q.total_amount || existing.amount;
-        existing.cloud_id = q.id;
-        existing.isSubcontract = q.is_subcontract || existing.isSubcontract || false;
-        existing.subcontractorName = q.subcontractor_name || existing.subcontractorName || '';
-        existing.subcontractorCost = q.subcontractor_cost || existing.subcontractorCost || 0;
-        existing.subcontractType = q.subcontract_type || existing.subcontractType || 'margin';
-        existing.address = q.setup_address || existing.address || '';
-        // 更新品項（如果員工改了）
-        if (q.quote_items && q.quote_items.length > 0) {
-          existing.items = q.quote_items.map(i => ({
-            name: i.item_name,
-            qty: i.quantity,
-            price: i.unit_price
+      try {
+        const existing = savedQuotes.find(s => s.no === q.quote_no);
+        if (existing) {
+          existing.status = q.status || existing.status;
+          existing.amount = q.total_amount || existing.amount || 0;
+          existing.cloud_id = q.id;
+          existing.isSubcontract = q.is_subcontract || false;
+          existing.subcontractorName = q.subcontractor_name || '';
+          existing.subcontractorCost = q.subcontractor_cost || 0;
+          existing.subcontractType = q.subcontract_type || 'margin';
+          existing.address = q.setup_address || existing.address || '';
+          if (q.quote_items && q.quote_items.length > 0) {
+            existing.items = q.quote_items.map(i => ({
+              name: i.item_name || '',
+              qty: i.quantity || 0,
+              price: i.unit_price || 0
+            }));
+            existing.amount = existing.items.reduce((sum, i) => sum + ((i.qty || 0) * (i.price || 0)), 0);
+          }
+          if (q.worker_notes) existing.worker_notes = q.worker_notes;
+        } else {
+          const date = q.created_at ? q.created_at.slice(5, 10).replace('-', '/') : '';
+          const items = (q.quote_items || []).map(i => ({
+            name: i.item_name || '',
+            qty: i.quantity || 0,
+            price: i.unit_price || 0
           }));
-          existing.amount = existing.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+          const amount = items.reduce((sum, i) => sum + ((i.qty || 0) * (i.price || 0)), 0);
+          savedQuotes.push({
+            id: 'cloud-' + q.id,
+            cloud_id: q.id,
+            no: q.quote_no || '',
+            client: q.client_name || '未知客戶',
+            tax: q.client_tax_id || '—',
+            contact: q.client_contact || '—',
+            phone: q.client_phone || '—',
+            setupDate: q.setup_date || '—',
+            eventDate: q.event_date_start || '—',
+            address: q.setup_address || '',
+            items: items,
+            amount: amount || q.total_amount || 0,
+            status: q.status || 'pending',
+            date: date,
+            paymentMethod: q.payment_method || '現金',
+            remark: q.remark || '',
+            worker_notes: q.worker_notes || '',
+            isSubcontract: q.is_subcontract || false,
+            subcontractorName: q.subcontractor_name || '',
+            subcontractorCost: q.subcontractor_cost || 0,
+            subcontractType: q.subcontract_type || 'margin'
+          });
         }
-        if (q.worker_notes) existing.worker_notes = q.worker_notes;
-      } else {
-        // 雲端有但前端沒有 → 新增
-        const date = q.created_at ? q.created_at.slice(5, 10).replace('-', '/') : '';
-        const items = (q.quote_items || []).map(i => ({
-          name: i.item_name,
-          qty: i.quantity,
-          price: i.unit_price
-        }));
-        const amount = items.reduce((sum, i) => sum + (i.qty * i.price), 0);
-        savedQuotes.push({
-          id: 'cloud-' + q.id,
-          cloud_id: q.id,
-          no: q.quote_no,
-          client: q.client_name,
-          tax: q.client_tax_id || '—',
-          contact: q.client_contact || '—',
-          phone: q.client_phone || '—',
-          setupDate: q.setup_date || '—',
-          eventDate: q.event_date_start || '—',
-          address: q.setup_address || '',
-          items: items,
-          amount: amount || q.total_amount || 0,
-          status: q.status || 'pending',
-          date: date,
-          paymentMethod: q.payment_method || '現金',
-          remark: q.remark || '',
-          worker_notes: q.worker_notes || '',
-          isSubcontract: q.is_subcontract || false,
-          subcontractorName: q.subcontractor_name || '',
-          subcontractorCost: q.subcontractor_cost || 0,
-          subcontractType: q.subcontract_type || 'margin'
-        });
+      } catch (itemErr) {
+        console.error('處理報價單失敗:', q.quote_no, itemErr);
       }
     });
 
@@ -3063,7 +3063,7 @@ function renderDetail() {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) return;
 
-  const s = statusMap[q.status];
+  const s = statusMap[q.status] || { label: q.status || '未知', cls: '' };
   const cashActive = q.paymentMethod === '現金' ? 'active' : '';
   const transferActive = q.paymentMethod === '轉帳' ? 'active' : '';
 
@@ -4154,7 +4154,7 @@ function renderQuotesList() {
   }
 
   results.forEach(q => {
-    const s = statusMap[q.status];
+    const s = statusMap[q.status] || { label: q.status || '未知', cls: '' };
     const item = document.createElement('div');
     item.className = 'quote-item';
     const methodTagCls = q.paymentMethod === '現金' ? 'cash' : 'transfer';
