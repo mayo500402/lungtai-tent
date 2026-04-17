@@ -2169,6 +2169,23 @@ document.getElementById('teardownDoneModal').addEventListener('click', (e) => {
   if (e.target.id === 'teardownDoneModal') closeTeardownModal();
 });
 
+// ========== 每 30 秒自動同步 ==========
+setInterval(async () => {
+  const prevCount = orders.length;
+  const prevItems = JSON.stringify(orders.map(o => o.items));
+  await loadOrdersFromCloud();
+  const newItems = JSON.stringify(orders.map(o => o.items));
+
+  if (orders.length !== prevCount || prevItems !== newItems) {
+    console.log('🔄 偵測到資料變更，自動更新畫面');
+    renderAll();
+    // 如果正在看詳細頁，也重新渲染
+    if (currentDetailId && document.getElementById('page-detail').classList.contains('active')) {
+      showDetail(currentDetailId);
+    }
+  }
+}, 30000);
+
 </script>
 </body>
 </html>

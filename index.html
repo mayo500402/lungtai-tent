@@ -3340,6 +3340,7 @@ function addItem() {
 async function syncItemsToCloud(q) {
   if (!q.cloud_id) return;
   try {
+    showSyncing('同步品項');
     // 刪掉舊品項，重新寫入
     await db.from('quote_items').delete().eq('quote_id', q.cloud_id);
     const rows = q.items.filter(i => i.name).map((i, idx) => ({
@@ -3357,9 +3358,11 @@ async function syncItemsToCloud(q) {
       updated_at: new Date().toISOString()
     }).eq('id', q.cloud_id);
 
-    console.log('✅ 品項已同步到雲端');
+    showSynced('已同步');
+    console.log('✅ 品項已同步到雲端，嘉豐30秒內會看到更新');
   } catch (err) {
     console.error('品項同步失敗:', err);
+    showError('同步失敗');
   }
 }
 
