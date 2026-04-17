@@ -1622,7 +1622,7 @@ function showDetail(id) {
 
     <div class="detail-section">
       <div class="detail-section-title">NOTES · 老闆備註</div>
-      <div class="worker-remark">${o.remark}</div>
+      <div class="worker-remark">${o.remark || '—'}</div>
     </div>
 
     <div class="detail-section">
@@ -1644,14 +1644,81 @@ function showDetail(id) {
         ${photosHTML}
         <div class="photo-note-editor">
           <label>NOTES · 施工筆記（可寫怎麼搭、注意事項）</label>
-          <textarea placeholder="例：主桿下加壓重沙包、燈串從左上拉到右下、客人要求入口朝南..."></textarea>
+          <textarea id="workerNotes_${o.id}" onblur="saveWorkerNotes(${o.id})" placeholder="例：主桿下加壓重沙包、燈串從左上拉到右下、客人要求入口朝南...">${o.worker_notes || ''}</textarea>
         </div>
       </div>
     </div>
 
+    ${o.status === 'pending-teardown' ? `
+    <div class="detail-section">
+      <div class="detail-section-title">📅 修改拆除日期</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="editTeardownDate_${o.id}" value="${o.teardownDate ? o.teardownDate.replace(/\//g,'-') : ''}" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;">
+        <button onclick="updateTeardownDate(${o.id})" style="padding:10px 16px;border:none;border-radius:8px;background:var(--worker);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">更新</button>
+      </div>
+    </div>
+    ` : ''}
+
     ${bigAction}
   `;
   window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// 儲存施工筆記到雲端
+async function saveWorkerNotes(orderId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o) return;
+  const textarea = document.getElementById('workerNotes_' + orderId);
+  if (!textarea) return;
+  const notes = textarea.value.trim();
+  if (notes === o.worker_notes) return; // 沒改就不存
+
+  o.worker_notes = notes;
+  if (o.quote_id) {
+    try {
+      await db.from('dispatches').update({
+        worker_notes: notes,
+        updated_at: new Date().toISOString()
+      }).eq('id', o.dispatch_id || o.id);
+
+      await db.from('quotes').update({
+        worker_notes: notes ? `[施工筆記] ${notes}` : '',
+        updated_at: new Date().toISOString()
+      }).eq('id', o.quote_id);
+
+      console.log('✅ 施工筆記已儲存');
+    } catch (err) {
+      console.error('施工筆記儲存失敗:', err);
+    }
+  }
+}
+
+// 修改拆除日期
+async function updateTeardownDate(orderId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o) return;
+  const input = document.getElementById('editTeardownDate_' + orderId);
+  if (!input || !input.value) { alert('請選擇日期'); return; }
+
+  const newDate = input.value; // YYYY-MM-DD 格式
+  o.teardownDate = newDate;
+
+  if (o.quote_id) {
+    try {
+      await db.from('quotes').update({
+        teardown_date: newDate,
+        updated_at: new Date().toISOString()
+      }).eq('id', o.quote_id);
+
+      alert('✓ 拆除日期已更新為 ' + newDate);
+      showDetail(orderId);
+      renderAll();
+      console.log('✅ 拆除日期已更新:', newDate);
+    } catch (err) {
+      console.error('更新拆除日期失敗:', err);
+      alert('更新失敗，請重試');
+    }
+  }
 }
 
 // 真的拍照上傳到 Supabase Storage
