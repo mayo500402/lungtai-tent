@@ -1104,15 +1104,15 @@ async function loadOrdersFromCloud() {
   try {
     console.log('📡 載入派工訂單... (' + new Date().toLocaleTimeString() + ')');
 
-    // 讀取所有派給 worker 的 dispatches，join quotes
+    // 1. 讀取 dispatches
     const { data: dispatches, error: dErr } = await db
       .from('dispatches')
-      .select('*, quotes(*)')
+      .select('*')
       .eq('worker_username', 'worker')
       .order('created_at', { ascending: false });
 
     if (dErr) {
-      console.error('❌ 讀取 dispatches 失敗:', dErr);
+      console.error('❌ 讀取 dispatches 失敗:', JSON.stringify(dErr));
       throw dErr;
     }
 
@@ -1124,17 +1124,28 @@ async function loadOrdersFromCloud() {
       return true;
     }
 
-    // 讀取每張報價單的品項
+    // 2. 分開讀取 quotes
     const quoteIds = dispatches.map(d => d.quote_id).filter(Boolean);
+    let quotesMap = {};
     let itemsMap = {};
 
     if (quoteIds.length > 0) {
-      const { data: allItems, error: iErr } = await db
+      const { data: quotesData } = await db
+        .from('quotes')
+        .select('*')
+        .in('id', quoteIds);
+
+      if (quotesData) {
+        quotesData.forEach(q => { quotesMap[q.id] = q; });
+      }
+
+      // 3. 讀取品項
+      const { data: allItems } = await db
         .from('quote_items')
         .select('*')
         .in('quote_id', quoteIds);
 
-      if (!iErr && allItems) {
+      if (allItems) {
         allItems.forEach(item => {
           if (!itemsMap[item.quote_id]) itemsMap[item.quote_id] = [];
           itemsMap[item.quote_id].push(item);
@@ -1142,9 +1153,9 @@ async function loadOrdersFromCloud() {
       }
     }
 
-    // 組成員工版 orders 格式
+    // 4. 組成員工版 orders 格式
     orders = dispatches.map(d => {
-      const q = d.quotes || {};
+      const q = quotesMap[d.quote_id] || {};
       const qItems = itemsMap[d.quote_id] || [];
 
       // 決定員工端的狀態
