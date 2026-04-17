@@ -3513,29 +3513,42 @@ function changePayMethod(method) {
   renderDetail();
 }
 
-function confirmPay(id) {
+async function confirmPay(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
-  if (confirm(`確認已收到「${q.client}」的款項 NT$ ${q.amount.toLocaleString()}？`)) {
-    q.status = 'paid';
-    if (q.cloud_id) {
-      db.from('quotes').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
+  if (!confirm(`確認已收到「${q.client}」的款項 NT$ ${q.amount.toLocaleString()}？`)) return;
+
+  q.status = 'paid';
+
+  if (q.cloud_id) {
+    try {
+      showSyncing('更新中');
+      await db.from('quotes').update({
+        status: 'paid',
+        updated_at: new Date().toISOString()
+      }).eq('id', q.cloud_id);
+      showSynced('已收款');
+      console.log('✅ 已標記為已收款:', q.client);
+    } catch (err) {
+      console.error('更新收款狀態失敗:', err);
+      showError('更新失敗');
     }
-    renderDetail();
-    renderFilterTabs();
-    renderQuotesList();
-    renderStats();
   }
+
+  renderDetail();
+  renderFilterTabs();
+  renderQuotesList();
+  renderStats();
 }
 
 // 標記為未成交
-function markLost(id) {
+async function markLost(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
   if (!confirm(`確認「${q.client}」未成交？\n\n報價單會保留在「未成交」分類，不會刪除。`)) return;
   q.status = 'lost';
   if (q.cloud_id) {
-    db.from('quotes').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
+    await db.from('quotes').update({ status: 'lost', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
   }
   renderDetail();
   renderFilterTabs();
@@ -3544,13 +3557,13 @@ function markLost(id) {
 }
 
 // 重新啟用未成交的報價單
-function reactivateQuote(id) {
+async function reactivateQuote(id) {
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
   if (!confirm(`重新啟用「${q.client}」的報價單？\n\n狀態會改回「待回覆」。`)) return;
   q.status = 'pending';
   if (q.cloud_id) {
-    db.from('quotes').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
+    await db.from('quotes').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
   }
   renderDetail();
   renderFilterTabs();
