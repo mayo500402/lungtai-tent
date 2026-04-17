@@ -1745,9 +1745,54 @@ function compressImage(file, maxWidth, quality) {
 function renderAddress(addr) {
   if (!addr || addr === '—') return '—';
   if (addr.match(/google\.com\/maps|goo\.gl|maps\.app/)) {
-    return '<a href="' + addr + '" target="_blank" style="color:#2a4564;text-decoration:underline;font-weight:500;" onclick="event.stopPropagation()">📍 點此開啟地圖導航</a>';
+    // 嘗試從 Google Maps 網址提取地點名稱
+    let placeName = '';
+
+    // 格式: /place/地點名稱/ 或 /place/地點名稱/@
+    const placeMatch = addr.match(/\/place\/([^\/\@\?]+)/);
+    if (placeMatch) {
+      placeName = decodeURIComponent(placeMatch[1]).replace(/\+/g, ' ');
+    }
+
+    // 格式: ?q=地點名稱
+    if (!placeName) {
+      const qMatch = addr.match(/[?&]q=([^&]+)/);
+      if (qMatch) placeName = decodeURIComponent(qMatch[1]).replace(/\+/g, ' ');
+    }
+
+    // 格式: /search/地點名稱
+    if (!placeName) {
+      const searchMatch = addr.match(/\/search\/([^\/\?]+)/);
+      if (searchMatch) placeName = decodeURIComponent(searchMatch[1]).replace(/\+/g, ' ');
+    }
+
+    // 格式: /dir//地點名稱
+    if (!placeName) {
+      const dirMatch = addr.match(/\/dir\/\/([^\/\?]+)/);
+      if (dirMatch) placeName = decodeURIComponent(dirMatch[1]).replace(/\+/g, ' ');
+    }
+
+    // 格式: maps.app.goo.gl 短連結 — 無法解析名稱，但老闆可能在地點欄同時寫了名稱+連結
+    // 例如 "震安宮 https://maps.app.goo.gl/xxx"
+    // 這種情況 addr 裡連結前面的文字就是名稱
+
+    if (placeName) {
+      return '📍 <a href="' + addr + '" target="_blank" style="color:#2a4564;text-decoration:underline;font-weight:500;" onclick="event.stopPropagation()">' + placeName + '</a>';
+    }
+
+    // 短連結無法解析名稱
+    return '📍 <a href="' + addr + '" target="_blank" style="color:#2a4564;text-decoration:underline;font-weight:500;" onclick="event.stopPropagation()">開啟地圖導航</a>';
   }
-  // 普通地址也加一個 Google Maps 搜尋連結
+
+  // 檢查是不是「名稱 + 連結」混合格式（例如 "震安宮前面 https://maps.app.goo.gl/xxx"）
+  const mixedMatch = addr.match(/^(.+?)\s*(https?:\/\/\S+)$/);
+  if (mixedMatch) {
+    const name = mixedMatch[1].trim();
+    const url = mixedMatch[2].trim();
+    return '📍 <a href="' + url + '" target="_blank" style="color:#2a4564;text-decoration:underline;font-weight:500;" onclick="event.stopPropagation()">' + name + '</a>';
+  }
+
+  // 普通地址加 Google Maps 搜尋連結
   return addr + ' <a href="https://www.google.com/maps/search/' + encodeURIComponent(addr) + '" target="_blank" style="color:#2a4564;font-size:11px;text-decoration:underline;" onclick="event.stopPropagation()">📍導航</a>';
 }
 
