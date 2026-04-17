@@ -1170,7 +1170,7 @@ async function loadOrdersFromCloud() {
         remark: q.remark || '',
         setupDate: q.setup_date || '—',
         eventDate: q.event_date_start || '—',
-        teardownDate: d.teardown_completed_at ? d.teardown_completed_at.slice(0,10) : null,
+        teardownDate: q.teardown_date || (d.teardown_completed_at ? d.teardown_completed_at.slice(0,10) : null),
         status: workerStatus,
         worker_notes: d.worker_notes || '',
         photos: []
@@ -1188,7 +1188,7 @@ async function loadOrdersFromCloud() {
 // 搭設完成 — 更新雲端
 async function markSetupComplete(dispatchId, teardownDate, notes) {
   try {
-    console.log('📤 同步搭設完成... dispatchId=', dispatchId);
+    console.log('📤 同步搭設完成... dispatchId=', dispatchId, '拆除日期=', teardownDate);
 
     const { error } = await db
       .from('dispatches')
@@ -1205,14 +1205,22 @@ async function markSetupComplete(dispatchId, teardownDate, notes) {
       throw error;
     }
 
-    // 也更新 quotes 的狀態
+    // 也更新 quotes 的狀態 + 拆除日期
     const order = orders.find(o => String(o.dispatch_id) === String(dispatchId));
     if (order && order.quote_id) {
-      // 組品項變更訊息
       const itemsSummary = order.items.map(i => `${i.name} ×${i.qty}`).join('、');
       const workerNote = notes
         ? `[搭設完成] ${notes}（品項：${itemsSummary}）`
         : `[搭設完成]（品項：${itemsSummary}）`;
+
+      // 轉換拆除日期格式
+      let teardownDateForDB = null;
+      if (teardownDate) {
+        teardownDateForDB = teardownDate.replace(/\//g, '-');
+        if (teardownDateForDB.split('-').length === 2) {
+          teardownDateForDB = new Date().getFullYear() + '-' + teardownDateForDB;
+        }
+      }
 
       const { error: qErr } = await db
         .from('quotes')
@@ -1220,6 +1228,7 @@ async function markSetupComplete(dispatchId, teardownDate, notes) {
           status: 'setup-done',
           worker_notes: workerNote,
           setup_completed_at: new Date().toISOString(),
+          teardown_date: teardownDateForDB,
           updated_at: new Date().toISOString()
         })
         .eq('id', order.quote_id);
