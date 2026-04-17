@@ -3225,17 +3225,7 @@ function renderDetail() {
             <div class="event-date-label">Location · 搭設地點</div>
             <div class="event-date-value" style="font-size:13px;">${detailEditMode
               ? ed(q.address, 'address', '輸入地點或貼 Google Maps 連結')
-              : (function(){
-                  if (!q.address || q.address === '—') return '—';
-                  const mm = q.address.match(/^(.+?)\s+(https?:\/\/\S+)$/);
-                  if (mm) return '<a href="'+mm[2]+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 '+mm[1].trim()+'</a>';
-                  if (q.address.match(/google\.com\/maps|goo\.gl|maps\.app/)) {
-                    const pm = q.address.match(/\/place\/([^\/\@\?]+)/);
-                    if (pm) return '<a href="'+q.address+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 '+decodeURIComponent(pm[1]).replace(/\+/g,' ')+'</a>';
-                    return '<a href="'+q.address+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 開啟地圖</a>';
-                  }
-                  return q.address;
-                })()
+              : renderAddressBoss(q.address)
             }</div>
           </div>
         </div>
@@ -3530,8 +3520,6 @@ function confirmPay(id) {
     renderStats();
   }
 }
-
-async function deleteQuote(id) {
 
 // 標記為未成交
 function markLost(id) {
@@ -4687,6 +4675,19 @@ document.querySelectorAll('.photo-group-btn').forEach(b => {
     renderPhotos();
   });
 });
+
+// 老闆版地址顯示（支援 Google Maps 連結）
+function renderAddressBoss(addr) {
+  if (!addr || addr === '—' || addr === '') return '—';
+  const mm = addr.match(/^(.+?)\s+(https?:\/\/\S+)$/);
+  if (mm) return '<a href="'+mm[2]+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 '+mm[1].trim()+'</a>';
+  if (addr.match(/google\.com\/maps|goo\.gl|maps\.app/)) {
+    const pm = addr.match(/\/place\/([^\/\@\?]+)/);
+    if (pm) return '<a href="'+addr+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 '+decodeURIComponent(pm[1]).replace(/\+/g,' ')+'</a>';
+    return '<a href="'+addr+'" target="_blank" style="color:var(--blue);text-decoration:underline;">📍 開啟地圖</a>';
+  }
+  return addr;
+}
 
 // INIT — 先載入雲端資料，再渲染畫面
 async function init() {
