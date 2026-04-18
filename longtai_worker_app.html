@@ -1128,6 +1128,7 @@ async function loadOrdersFromCloud() {
     const quoteIds = dispatches.map(d => d.quote_id).filter(Boolean);
     let quotesMap = {};
     let itemsMap = {};
+    let photosMap = {};
 
     if (quoteIds.length > 0) {
       const { data: quotesData } = await db
@@ -1149,6 +1150,26 @@ async function loadOrdersFromCloud() {
         allItems.forEach(item => {
           if (!itemsMap[item.quote_id]) itemsMap[item.quote_id] = [];
           itemsMap[item.quote_id].push(item);
+        });
+      }
+
+      // 4. 讀取照片
+      const { data: allPhotos } = await db
+        .from('photos')
+        .select('*')
+        .in('quote_id', quoteIds)
+        .order('created_at', { ascending: true });
+
+      if (allPhotos) {
+        allPhotos.forEach(p => {
+          if (!photosMap[p.quote_id]) photosMap[p.quote_id] = [];
+          const { data: urlData } = db.storage.from('photos').getPublicUrl(p.storage_path);
+          photosMap[p.quote_id].push({
+            id: 'p' + p.id,
+            label: p.photo_type || 'final',
+            note: p.notes || '',
+            url: urlData.publicUrl
+          });
         });
       }
     }
@@ -1184,7 +1205,7 @@ async function loadOrdersFromCloud() {
         teardownDate: q.teardown_date || (d.teardown_completed_at ? d.teardown_completed_at.slice(0,10) : null),
         status: workerStatus,
         worker_notes: d.worker_notes || '',
-        photos: []
+        photos: photosMap[d.quote_id] || []
       };
     });
 
