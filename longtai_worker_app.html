@@ -1168,7 +1168,8 @@ async function loadOrdersFromCloud() {
             id: 'p' + p.id,
             label: p.photo_type || 'final',
             note: p.notes || '',
-            url: urlData.publicUrl
+            url: urlData.publicUrl,
+            storage_path: p.storage_path || ''
           });
         });
       }
@@ -1548,10 +1549,10 @@ function showDetail(id) {
 
   const photosHTML = o.photos.length > 0 ? `
     <div class="photo-grid">
-      ${o.photos.map(p => `
-        <div class="photo-thumb ${p.label === 'final' ? 'is-final' : ''}" ${p.url ? `onclick="window.open('${p.url}','_blank')"` : ''}>
+      ${o.photos.map((p, idx) => `
+        <div class="photo-thumb ${p.label === 'final' ? 'is-final' : ''}" style="position:relative;">
           ${p.url
-            ? `<img src="${p.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`
+            ? `<img src="${p.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onclick="window.open('${p.url}','_blank')" />`
             : `<svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="1">
                 <path d="M10 70 L50 30 L90 70 Z"/>
                 <path d="M50 30 L50 70"/>
@@ -1560,6 +1561,7 @@ function showDetail(id) {
           }
           ${p.label === 'teardown' ? '<div class="photo-thumb-badge">拆</div>' : ''}
           ${p.label === 'final' ? '<div class="photo-thumb-badge" style="background:var(--green)">完工</div>' : ''}
+          <button onclick="event.stopPropagation(); deletePhoto(${o.id}, ${idx}, '${p.id}')" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
         </div>
       `).join('')}
     </div>
@@ -1685,6 +1687,38 @@ function showDetail(id) {
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
+// 刪除照片
+async function deletePhoto(orderId, photoIdx, photoId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o || !o.photos[photoIdx]) return;
+  if (!confirm('確定刪除這張照片？')) return;
+
+  const photo = o.photos[photoIdx];
+
+  try {
+    // 從 photos 資料表刪除（用 id 去掉 p 前綴）
+    const dbId = parseInt(photoId.replace('p', ''));
+    if (dbId) {
+      await db.from('photos').delete().eq('id', dbId);
+    }
+
+    // 從 Storage 刪除（如果有 storage_path）
+    if (photo.storage_path) {
+      await db.storage.from('photos').remove([photo.storage_path]);
+    }
+
+    // 從本地移除
+    o.photos.splice(photoIdx, 1);
+    showDetail(orderId);
+    console.log('✅ 照片已刪除');
+  } catch (err) {
+    console.error('刪除照片失敗:', err);
+    // 即使雲端刪除失敗，本地也移除
+    o.photos.splice(photoIdx, 1);
+    showDetail(orderId);
+  }
+}
+
 // 儲存施工筆記到雲端
 async function saveWorkerNotes(orderId) {
   const o = orders.find(x => String(x.id) === String(orderId));
@@ -1784,7 +1818,7 @@ async function uploadPhoto(input, orderId, photoType) {
     const publicUrl = urlData.publicUrl;
 
     // 寫入 photos 資料表
-    const { error: dbErr } = await db
+    const { data: insertedPhoto, error: dbErr } = await db
       .from('photos')
       .insert([{
         quote_id: o.quote_id || null,
@@ -1792,16 +1826,19 @@ async function uploadPhoto(input, orderId, photoType) {
         photo_type: photoType,
         notes: '',
         uploaded_by: 'worker'
-      }]);
+      }])
+      .select();
 
     if (dbErr) console.error('寫入 photos 表失敗:', dbErr);
 
-    // 更新本地資料
+    // 更新本地資料（用真實的資料庫 id）
+    const realId = insertedPhoto && insertedPhoto[0] ? insertedPhoto[0].id : timestamp;
     o.photos.push({
-      id: 'p' + timestamp,
+      id: 'p' + realId,
       label: photoType,
       note: '',
-      url: publicUrl
+      url: publicUrl,
+      storage_path: path
     });
 
     statusMsg.textContent = `✓ ${typeLabel}已上傳！`;
