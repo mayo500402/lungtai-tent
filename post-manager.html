@@ -475,7 +475,7 @@ async function showCasePicker() {
   const { data: quotes, error } = await db
     .from('quotes')
     .select('id, client_name, event_date, total_amount, status')
-    .in('status', ['已完成', '未收款', '已收款', 'done'])
+    .not('status', 'is', null)
     .order('event_date', { ascending: false })
     .limit(20);
 
