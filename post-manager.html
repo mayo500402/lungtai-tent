@@ -474,9 +474,9 @@ async function showCasePicker() {
   // 載入已完成的案例（有照片的）
   const { data: quotes, error } = await db
     .from('quotes')
-    .select('id, client_name, event_date, total_amount, status')
-    .not('status', 'is', null)
-    .order('event_date', { ascending: false })
+    .select('id, client_name, event_date_start, total_amount, status')
+    .in('status', ['accepted', 'unpaid', 'paid', 'dispatched', 'setup-done', 'done'])
+    .order('event_date_start', { ascending: false })
     .limit(20);
 
   if (error || !quotes || quotes.length === 0) {
@@ -515,7 +515,7 @@ async function showCasePicker() {
       <div style="flex:1;">
         <div class="publish-option-label">${q.client_name}</div>
         <div class="publish-option-desc">
-          ${q.event_date || '日期未定'} · ${hasPhotos ? '有照片' : '無照片'}
+          ${q.event_date_start || '日期未定'} · ${hasPhotos ? '有照片' : '無照片'}
           ${alreadyGenerated ? ' · 已產過文章' : ''}
         </div>
       </div>
@@ -570,9 +570,9 @@ async function generatePost(quoteId) {
 
 案例資訊：
 - 客戶名稱：${quote.client_name}
-- 活動日期：${quote.event_date || '未知'}
+- 活動日期：${quote.event_date_start || '未知'}
 - 搭設品項：${itemList || '未提供'}
-- 地點：${quote.address || '未提供'}
+- 地點：${quote.setup_address || '未提供'}
 - 施工筆記：${quote.worker_notes || '無'}
 
 要求：
