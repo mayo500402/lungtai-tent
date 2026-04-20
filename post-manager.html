@@ -555,23 +555,33 @@ async function generatePost(quoteId) {
 
   try {
     // 1. 載入案例資料
-    const { data: quote } = await db.from('quotes').select('*').eq('id', quoteId).single();
+    console.log('📝 載入案例:', quoteId);
+    const { data: quote, error: qErr } = await db.from('quotes').select('*').eq('id', quoteId).single();
+    if (qErr) { console.error('quotes 查詢錯誤:', qErr); throw new Error('查詢案例失敗: ' + qErr.message); }
     if (!quote) throw new Error('找不到案例');
+    console.log('✓ 案例:', quote.client_name);
 
-    // 2. 載入品項
-    const { data: items } = await db.from('quote_items').select('item_name, quantity').eq('quote_id', quoteId);
+    // 2. 載入品項（可能沒有，不影響）
+    let itemList = '';
+    try {
+      const { data: items } = await db.from('quote_items').select('item_name, quantity').eq('quote_id', quoteId);
+      itemList = (items || []).map(i => `${i.item_name} ×${i.quantity}`).join('、');
+      console.log('✓ 品項:', itemList || '無');
+    } catch (e) { console.warn('品項載入失敗（不影響）:', e); }
 
-    // 3. 載入照片
-    const { data: photos } = await db.from('photos').select('storage_path, photo_type, notes').eq('quote_id', quoteId);
-
-    // 取得照片公開 URL
-    const photoUrls = (photos || []).map(p => {
-      const { data } = db.storage.from('photos').getPublicUrl(p.storage_path);
-      return { url: data.publicUrl, type: p.photo_type, notes: p.notes };
-    });
+    // 3. 載入照片（可能沒有，不影響）
+    let photoUrls = [];
+    try {
+      const { data: photos } = await db.from('photos').select('storage_path, photo_type, notes').eq('quote_id', quoteId);
+      photoUrls = (photos || []).map(p => {
+        const { data } = db.storage.from('photos').getPublicUrl(p.storage_path);
+        return { url: data.publicUrl, type: p.photo_type, notes: p.notes || '' };
+      });
+      console.log('✓ 照片:', photoUrls.length, '張');
+    } catch (e) { console.warn('照片載入失敗（不影響）:', e); }
 
     // 4. 呼叫 Gemini 產文
-    const itemList = (items || []).map(i => `${i.item_name} ×${i.quantity}`).join('、');
+    console.log('🤖 呼叫 Gemini...');
     const prompt = `你是「隆泰帳篷企業社」的社群小編，請根據以下施工資訊撰寫一篇 Facebook / Instagram 貼文。
 
 案例資訊：
@@ -593,6 +603,7 @@ async function generatePost(quoteId) {
 {"title": "標題", "body": "正文內容", "hashtags": "#帳篷 #嘉義 ..."}`;
 
     const aiResult = await callGemini(prompt);
+    console.log('✓ AI 回覆:', aiResult.substring(0, 100));
 
     // 5. 解析 AI 回覆
     let parsed;
@@ -600,16 +611,16 @@ async function generatePost(quoteId) {
       const cleaned = aiResult.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      // 嘗試從回覆中提取 JSON
       const jsonMatch = aiResult.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error('AI 回覆格式錯誤');
+        throw new Error('AI 回覆格式錯誤: ' + aiResult.substring(0, 200));
       }
     }
 
     // 6. 存入 posts 資料表
+    console.log('💾 儲存文章...');
     const { data: newPost, error: insertErr } = await db.from('posts').insert([{
       quote_id: quoteId,
       title: parsed.title || '新案例分享',
@@ -619,7 +630,7 @@ async function generatePost(quoteId) {
       status: 'draft'
     }]).select().single();
 
-    if (insertErr) throw insertErr;
+    if (insertErr) { console.error('儲存失敗:', insertErr); throw new Error('儲存失敗: ' + insertErr.message); }
 
     showToast('✓ 文章已自動產生！');
     await loadPosts();
