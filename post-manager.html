@@ -477,7 +477,7 @@ async function showCasePicker() {
       .from('quotes')
       .select('id, client_name, event_date_start, total_amount, status')
       .in('status', ['accepted', 'unpaid', 'paid', 'dispatched', 'setup-done', 'done'])
-      .order('event_date_start', { ascending: false })
+      .order('id', { ascending: false })
       .limit(20);
 
     console.log('查詢結果:', quotes, '錯誤:', error);
@@ -494,19 +494,20 @@ async function showCasePicker() {
     const listEl = document.getElementById('casePickerList');
     listEl.innerHTML = '';
 
-    // 一次查所有已產過文章的 quote_id
-    const { data: existingPosts } = await db
-      .from('posts')
-      .select('quote_id');
-    const generatedIds = new Set((existingPosts || []).map(p => p.quote_id));
+    // 查已產過文章的 quote_id（用 try-catch 包住，避免 posts 表有問題）
+    let generatedIds = new Set();
+    try {
+      const { data: existingPosts } = await db.from('posts').select('quote_id');
+      generatedIds = new Set((existingPosts || []).map(p => p.quote_id));
+    } catch (e) { console.warn('posts 查詢失敗（不影響）:', e); }
+
+    const statusLabels = {
+      'accepted': '已成交', 'unpaid': '未收款', 'paid': '已收款',
+      'dispatched': '已派工', 'setup-done': '已搭設', 'done': '完成'
+    };
 
     for (const q of quotes) {
       const alreadyGenerated = generatedIds.has(q.id);
-
-      const statusLabels = {
-        'accepted': '已成交', 'unpaid': '未收款', 'paid': '已收款',
-        'dispatched': '已派工', 'setup-done': '已搭設', 'done': '完成'
-      };
 
       const card = document.createElement('div');
       card.className = 'publish-option';
