@@ -471,67 +471,73 @@ function renderPosts() {
 // 案例選擇器 → AI 產文
 // ============================================
 async function showCasePicker() {
-  // 載入已完成的案例（有照片的）
-  const { data: quotes, error } = await db
-    .from('quotes')
-    .select('id, client_name, event_date_start, total_amount, status')
-    .in('status', ['accepted', 'unpaid', 'paid', 'dispatched', 'setup-done', 'done'])
-    .order('event_date_start', { ascending: false })
-    .limit(20);
+  try {
+    // 載入已完成的案例
+    const { data: quotes, error } = await db
+      .from('quotes')
+      .select('id, client_name, event_date_start, total_amount, status')
+      .in('status', ['accepted', 'unpaid', 'paid', 'dispatched', 'setup-done', 'done'])
+      .order('event_date_start', { ascending: false })
+      .limit(20);
 
-  if (error || !quotes || quotes.length === 0) {
-    showToast('找不到已完成的案例');
-    return;
-  }
+    console.log('查詢結果:', quotes, '錯誤:', error);
 
-  const listEl = document.getElementById('casePickerList');
-  listEl.innerHTML = '';
-
-  for (const q of quotes) {
-    // 查詢這個案例的照片
-    const { data: photos } = await db
-      .from('photos')
-      .select('storage_path')
-      .eq('quote_id', q.id)
-      .limit(1);
-
-    const hasPhotos = photos && photos.length > 0;
-
-    // 查詢是否已產過文章
-    const { data: existingPosts } = await db
-      .from('posts')
-      .select('id')
-      .eq('quote_id', q.id)
-      .limit(1);
-
-    const alreadyGenerated = existingPosts && existingPosts.length > 0;
-
-    const card = document.createElement('div');
-    card.className = 'publish-option';
-    card.style.cursor = alreadyGenerated ? 'not-allowed' : 'pointer';
-    card.style.opacity = alreadyGenerated ? '0.5' : '1';
-    card.innerHTML = `
-      <span class="publish-option-icon">${hasPhotos ? '📸' : '📋'}</span>
-      <div style="flex:1;">
-        <div class="publish-option-label">${q.client_name}</div>
-        <div class="publish-option-desc">
-          ${q.event_date_start || '日期未定'} · ${hasPhotos ? '有照片' : '無照片'}
-          ${alreadyGenerated ? ' · 已產過文章' : ''}
-        </div>
-      </div>
-    `;
-
-    if (!alreadyGenerated) {
-      card.addEventListener('click', () => {
-        closeCasePicker();
-        generatePost(q.id);
-      });
+    if (error) {
+      showToast('查詢失敗：' + error.message);
+      return;
+    }
+    if (!quotes || quotes.length === 0) {
+      showToast('找不到已完成的案例');
+      return;
     }
 
-    listEl.appendChild(card);
-  }
+    const listEl = document.getElementById('casePickerList');
+    listEl.innerHTML = '';
 
-  document.getElementById('casePickerModal').classList.add('visible');
+    // 一次查所有已產過文章的 quote_id
+    const { data: existingPosts } = await db
+      .from('posts')
+      .select('quote_id');
+    const generatedIds = new Set((existingPosts || []).map(p => p.quote_id));
+
+    for (const q of quotes) {
+      const alreadyGenerated = generatedIds.has(q.id);
+
+      const statusLabels = {
+        'accepted': '已成交', 'unpaid': '未收款', 'paid': '已收款',
+        'dispatched': '已派工', 'setup-done': '已搭設', 'done': '完成'
+      };
+
+      const card = document.createElement('div');
+      card.className = 'publish-option';
+      card.style.cursor = alreadyGenerated ? 'not-allowed' : 'pointer';
+      card.style.opacity = alreadyGenerated ? '0.5' : '1';
+      card.innerHTML = `
+        <span class="publish-option-icon">📋</span>
+        <div style="flex:1;">
+          <div class="publish-option-label">${q.client_name}</div>
+          <div class="publish-option-desc">
+            ${q.event_date_start || '日期未定'} · ${statusLabels[q.status] || q.status}
+            ${alreadyGenerated ? ' · 已產過文章' : ''}
+          </div>
+        </div>
+      `;
+
+      if (!alreadyGenerated) {
+        card.addEventListener('click', () => {
+          closeCasePicker();
+          generatePost(q.id);
+        });
+      }
+
+      listEl.appendChild(card);
+    }
+
+    document.getElementById('casePickerModal').classList.add('visible');
+  } catch (err) {
+    console.error('showCasePicker 錯誤:', err);
+    showToast('發生錯誤：' + err.message);
+  }
 }
 
 function closeCasePicker() {
