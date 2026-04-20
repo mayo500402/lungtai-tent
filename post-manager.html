@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a1a">
+<title>隆泰帳篷 · 文章管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #f5f1ea;
+  --bg-card: #fffef9;
+  --ink: #1a1614;
+  --ink-soft: #6b625a;
+  --ink-faint: #a8a096;
+  --line: #e0d9cc;
+  --line-soft: #ebe5d8;
+  --accent: #c73e1d;
+  --accent-soft: #f5ddd5;
+  --gold: #8b6f47;
+  --green: #4a6741;
+  --green-soft: #dde5d3;
+  --blue: #2a4564;
+  --blue-soft: #d5dde8;
+  --purple: #6b4c8a;
+  --purple-soft: #e8ddf0;
+  --shadow: 0 1px 2px rgba(26,22,20,0.04), 0 4px 12px rgba(26,22,20,0.06);
+  --shadow-lg: 0 2px 6px rgba(26,22,20,0.06), 0 12px 32px rgba(26,22,20,0.08);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Sans TC', -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image:
+    radial-gradient(at 20% 0%, rgba(107,76,138,0.03) 0%, transparent 50%),
+    radial-gradient(at 80% 100%, rgba(139,111,71,0.04) 0%, transparent 50%);
+}
+
+.app {
+  max-width: 680px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+/* HEADER */
+.header {
+  padding: 20px 20px 16px;
+  border-bottom: 0.5px solid var(--line);
+  background: var(--bg-card);
+  position: sticky; top: 0; z-index: 10;
+}
+.header-top { display: flex; justify-content: space-between; align-items: center; }
+.brand-mark { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 500; }
+.brand-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink-faint); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px; }
+.back-link { font-size: 13px; color: var(--ink-soft); text-decoration: none; padding: 6px 12px; border: 0.5px solid var(--line); border-radius: 8px; }
+
+/* TABS */
+.tabs {
+  display: flex; background: var(--bg-card); border-bottom: 0.5px solid var(--line);
+  position: sticky; top: 71px; z-index: 9;
+}
+.tab {
+  flex: 1; background: none; border: none; padding: 13px 4px;
+  font-family: inherit; font-size: 13px; color: var(--ink-soft);
+  cursor: pointer; position: relative; font-weight: 500;
+}
+.tab.active { color: var(--purple); }
+.tab.active::after {
+  content: ''; position: absolute; bottom: -0.5px;
+  left: 20%; right: 20%; height: 2.5px;
+  background: var(--purple); border-radius: 2px;
+}
+.tab-count {
+  display: inline-block; background: var(--line); color: var(--ink-soft);
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  padding: 1px 6px; border-radius: 8px; margin-left: 4px;
+}
+.tab.active .tab-count { background: var(--purple); color: #fff; }
+
+/* MAIN */
+.main { padding: 18px 18px 40px; }
+
+/* PAGE TITLE */
+.page-title { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 400; margin-bottom: 4px; }
+.page-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.05em; margin-bottom: 18px; }
+
+/* GENERATE BUTTON */
+.generate-bar {
+  background: var(--bg-card); border: 0.5px solid var(--line);
+  border-radius: 14px; padding: 16px; margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.generate-bar p { font-size: 13px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.6; }
+.generate-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 10px;
+  background: var(--purple); color: #fff; font-family: inherit;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.2s;
+}
+.generate-btn:active { transform: scale(0.98); }
+.generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.generate-btn .spinner {
+  width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.8s linear infinite; display: none;
+}
+.generate-btn.loading .spinner { display: block; }
+.generate-btn.loading .btn-text { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* POST CARD */
+.post-card {
+  background: var(--bg-card); border: 0.5px solid var(--line);
+  border-radius: 14px; margin-bottom: 14px; overflow: hidden;
+  box-shadow: var(--shadow); cursor: pointer; transition: all 0.15s;
+}
+.post-card:active { transform: scale(0.99); }
+.post-card-photos {
+  display: flex; gap: 2px; height: 140px; overflow: hidden;
+}
+.post-card-photos img {
+  flex: 1; min-width: 0; object-fit: cover; height: 100%;
+}
+.post-card-body { padding: 14px 16px; }
+.post-card-status {
+  display: inline-block; font-size: 10px; padding: 3px 8px;
+  border-radius: 6px; font-weight: 600; letter-spacing: 0.05em;
+  font-family: 'JetBrains Mono', monospace; margin-bottom: 6px;
+}
+.status-draft { background: var(--purple-soft); color: var(--purple); }
+.status-approved { background: var(--blue-soft); color: var(--blue); }
+.status-published { background: var(--green-soft); color: var(--green); }
+.post-card-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; line-height: 1.4; }
+.post-card-preview { font-size: 13px; color: var(--ink-soft); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.post-card-meta { font-size: 11px; color: var(--ink-faint); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+/* DETAIL VIEW */
+.detail-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: var(--bg); overflow-y: auto;
+  display: none;
+}
+.detail-overlay.visible { display: block; animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.detail-header {
+  position: sticky; top: 0; z-index: 51;
+  background: var(--bg-card); border-bottom: 0.5px solid var(--line);
+  padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+}
+.detail-close {
+  background: none; border: 0.5px solid var(--line); border-radius: 8px;
+  padding: 6px 14px; font-family: inherit; font-size: 13px;
+  color: var(--ink-soft); cursor: pointer;
+}
+.detail-actions { display: flex; gap: 8px; }
+.detail-btn {
+  padding: 8px 16px; border: none; border-radius: 8px;
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.detail-btn-approve { background: var(--blue); color: #fff; }
+.detail-btn-publish { background: var(--green); color: #fff; }
+.detail-btn-delete { background: var(--accent-soft); color: var(--accent); }
+
+.detail-body { padding: 18px; max-width: 680px; margin: 0 auto; }
+
+.detail-photos {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px; margin-bottom: 18px;
+}
+.detail-photos img {
+  width: 100%; height: 140px; object-fit: cover; border-radius: 10px;
+  border: 0.5px solid var(--line);
+}
+
+.detail-field { margin-bottom: 16px; }
+.detail-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--ink-faint); letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.detail-input {
+  width: 100%; padding: 10px 14px; background: var(--bg-card);
+  border: 0.5px solid var(--line); border-radius: 10px;
+  font-family: inherit; font-size: 14px; color: var(--ink);
+  transition: border-color 0.2s;
+}
+.detail-input:focus { outline: none; border-color: var(--purple); }
+.detail-textarea {
+  width: 100%; padding: 12px 14px; background: var(--bg-card);
+  border: 0.5px solid var(--line); border-radius: 10px;
+  font-family: inherit; font-size: 14px; color: var(--ink);
+  min-height: 200px; resize: vertical; line-height: 1.7;
+}
+.detail-textarea:focus { outline: none; border-color: var(--purple); }
+
+.preview-card {
+  background: var(--bg-card); border: 0.5px solid var(--line);
+  border-radius: 14px; padding: 18px; margin-top: 18px;
+}
+.preview-label { font-size: 12px; color: var(--ink-faint); margin-bottom: 10px; font-weight: 500; }
+.preview-text { font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+.preview-tags { margin-top: 10px; font-size: 13px; color: var(--blue); }
+
+/* PUBLISH MODAL */
+.publish-modal {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(26,22,20,0.5); display: none;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.publish-modal.visible { display: flex; }
+.publish-modal-inner {
+  background: var(--bg-card); border-radius: 18px;
+  padding: 24px; width: 100%; max-width: 400px;
+  box-shadow: var(--shadow-lg);
+}
+.publish-modal-title { font-family: 'Fraunces', serif; font-size: 20px; margin-bottom: 4px; }
+.publish-modal-sub { font-size: 12px; color: var(--ink-soft); margin-bottom: 18px; }
+.publish-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px; border: 0.5px solid var(--line); border-radius: 12px;
+  margin-bottom: 8px; cursor: pointer; transition: all 0.15s;
+}
+.publish-option:hover { border-color: var(--purple); background: rgba(107,76,138,0.04); }
+.publish-option input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--purple); }
+.publish-option-icon { font-size: 24px; }
+.publish-option-label { font-size: 14px; font-weight: 500; }
+.publish-option-desc { font-size: 11px; color: var(--ink-faint); }
+.publish-confirm-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 10px;
+  background: var(--green); color: #fff; font-family: inherit;
+  font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 14px;
+}
+.publish-cancel-btn {
+  width: 100%; padding: 10px; border: none; background: none;
+  font-family: inherit; font-size: 13px; color: var(--ink-soft); cursor: pointer; margin-top: 6px;
+}
+
+/* EMPTY */
+.empty { text-align: center; padding: 60px 20px; color: var(--ink-faint); }
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+.empty-text { font-size: 14px; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 12px 24px;
+  border-radius: 12px; font-size: 14px; font-weight: 500;
+  box-shadow: var(--shadow-lg); z-index: 200;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.visible { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="brand-mark">文章管理</div>
+        <div class="brand-sub">Post Manager · Longtai Tent</div>
+      </div>
+      <a href="index.html" class="back-link">← 報價簿</a>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" data-tab="draft" onclick="switchTab('draft')">
+      待審核 <span class="tab-count" id="countDraft">0</span>
+    </button>
+    <button class="tab" data-tab="approved" onclick="switchTab('approved')">
+      已核准 <span class="tab-count" id="countApproved">0</span>
+    </button>
+    <button class="tab" data-tab="published" onclick="switchTab('published')">
+      已發布 <span class="tab-count" id="countPublished">0</span>
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- Generate bar (only in draft tab) -->
+    <div class="generate-bar" id="generateBar">
+      <p>從已完成的案例中，讓 AI 自動產生圖文貼文。選擇一個案例後，AI 會根據照片與施工資訊自動撰寫文案。</p>
+      <button class="generate-btn" id="generateBtn" onclick="showCasePicker()">
+        <span class="btn-text">✨ 從案例產生文章</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+
+    <!-- Post list -->
+    <div id="postList"></div>
+  </div>
+
+</div>
+
+<!-- DETAIL OVERLAY -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-header">
+    <button class="detail-close" onclick="closeDetail()">← 返回</button>
+    <div class="detail-actions" id="detailActions"></div>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<!-- PUBLISH MODAL -->
+<div class="publish-modal" id="publishModal">
+  <div class="publish-modal-inner">
+    <div class="publish-modal-title">發布到哪裡？</div>
+    <div class="publish-modal-sub">選擇要發布的平台，可多選</div>
+    <label class="publish-option">
+      <input type="checkbox" id="pubWebsite" checked>
+      <span class="publish-option-icon">🌐</span>
+      <div>
+        <div class="publish-option-label">官方網站</div>
+        <div class="publish-option-desc">新增到案例分享頁面</div>
+      </div>
+    </label>
+    <label class="publish-option">
+      <input type="checkbox" id="pubFB" checked>
+      <span class="publish-option-icon">📘</span>
+      <div>
+        <div class="publish-option-label">Facebook 粉絲團</div>
+        <div class="publish-option-desc" id="fbStatusDesc">尚未連接，請先設定</div>
+      </div>
+    </label>
+    <label class="publish-option">
+      <input type="checkbox" id="pubIG">
+      <span class="publish-option-icon">📸</span>
+      <div>
+        <div class="publish-option-label">Instagram</div>
+        <div class="publish-option-desc" id="igStatusDesc">尚未連接，請先設定</div>
+      </div>
+    </label>
+    <button class="publish-confirm-btn" id="publishConfirmBtn" onclick="confirmPublish()">確認發布</button>
+    <button class="publish-cancel-btn" onclick="closePublishModal()">取消</button>
+  </div>
+</div>
+
+<!-- CASE PICKER MODAL -->
+<div class="publish-modal" id="casePickerModal">
+  <div class="publish-modal-inner" style="max-height:80vh;overflow-y:auto;">
+    <div class="publish-modal-title">選擇案例</div>
+    <div class="publish-modal-sub">選擇一個已完成的案例來產生文章</div>
+    <div id="casePickerList"></div>
+    <button class="publish-cancel-btn" onclick="closeCasePicker()">取消</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================
+// 🌐 SUPABASE 設定（與報價簿共用）
+// ============================================
+const SUPABASE_URL = 'https://htsmeyvqcpcwdtpszpve.supabase.co';
+const SUPABASE_KEY = 'sb_publishable__c2PdqONSUkS-pJTrDYJhg_PMoD4vQZ';
+
+// ============================================
+// 🤖 GEMINI AI 設定（與報價簿共用）
+// ============================================
+const GEMINI_API_KEY = 'AIzaSyD3xYSu2hh1eDzCCrFO0IqBgtBL0sUOaWM';
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite'];
+
+// ============================================
+// 🔗 社群平台設定（需要自行填入）
+// ============================================
+const FB_PAGE_ACCESS_TOKEN = '';  // 步驟見 README
+const FB_PAGE_ID = '';            // 步驟見 README
+const IG_USER_ID = '';            // 步驟見 README
+
+// ============================================
+// 初始化
+// ============================================
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let posts = [];
+let currentTab = 'draft';
+let currentPostId = null;
+
+// ============================================
+// 載入文章
+// ============================================
+async function loadPosts() {
+  const { data, error } = await db
+    .from('posts')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('載入文章失敗:', error);
+    showToast('載入失敗，請重試');
+    return;
+  }
+  posts = data || [];
+  updateCounts();
+  renderPosts();
+}
+
+function updateCounts() {
+  document.getElementById('countDraft').textContent = posts.filter(p => p.status === 'draft').length;
+  document.getElementById('countApproved').textContent = posts.filter(p => p.status === 'approved').length;
+  document.getElementById('countPublished').textContent = posts.filter(p => p.status === 'published').length;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('generateBar').style.display = tab === 'draft' ? 'block' : 'none';
+  renderPosts();
+}
+
+// ============================================
+// 渲染文章列表
+// ============================================
+function renderPosts() {
+  const list = document.getElementById('postList');
+  const filtered = posts.filter(p => p.status === currentTab);
+
+  if (filtered.length === 0) {
+    const msgs = {
+      draft: '目前沒有待審核的文章<br><br>點擊上方按鈕從案例自動產生',
+      approved: '目前沒有已核准的文章',
+      published: '目前沒有已發布的文章'
+    };
+    list.innerHTML = `<div class="empty"><div class="empty-icon">—</div><div class="empty-text">${msgs[currentTab]}</div></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const photos = p.photos || [];
+    const photosHTML = photos.length > 0
+      ? `<div class="post-card-photos">${photos.slice(0, 3).map(ph => `<img src="${ph.url}" loading="lazy">`).join('')}</div>`
+      : '';
+    const statusLabels = { draft: '待審核', approved: '已核准', published: '已發布' };
+    const date = new Date(p.created_at).toLocaleDateString('zh-TW');
+    return `
+      <div class="post-card" onclick="openDetail('${p.id}')">
+        ${photosHTML}
+        <div class="post-card-body">
+          <span class="post-card-status status-${p.status}">${statusLabels[p.status]}</span>
+          <div class="post-card-title">${p.title || '（無標題）'}</div>
+          <div class="post-card-preview">${p.body || ''}</div>
+          <div class="post-card-meta">${date}${p.published_at ? ' · 已發布 ' + new Date(p.published_at).toLocaleDateString('zh-TW') : ''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================
+// 案例選擇器 → AI 產文
+// ============================================
+async function showCasePicker() {
+  // 載入已完成的案例（有照片的）
+  const { data: quotes, error } = await db
+    .from('quotes')
+    .select('id, client_name, event_date, total_amount, status')
+    .in('status', ['已完成', '未收款', '已收款', 'done'])
+    .order('event_date', { ascending: false })
+    .limit(20);
+
+  if (error || !quotes || quotes.length === 0) {
+    showToast('找不到已完成的案例');
+    return;
+  }
+
+  const listEl = document.getElementById('casePickerList');
+  listEl.innerHTML = '';
+
+  for (const q of quotes) {
+    // 查詢這個案例的照片
+    const { data: photos } = await db
+      .from('photos')
+      .select('storage_path')
+      .eq('quote_id', q.id)
+      .limit(1);
+
+    const hasPhotos = photos && photos.length > 0;
+
+    // 查詢是否已產過文章
+    const { data: existingPosts } = await db
+      .from('posts')
+      .select('id')
+      .eq('quote_id', q.id)
+      .limit(1);
+
+    const alreadyGenerated = existingPosts && existingPosts.length > 0;
+
+    const card = document.createElement('div');
+    card.className = 'publish-option';
+    card.style.cursor = alreadyGenerated ? 'not-allowed' : 'pointer';
+    card.style.opacity = alreadyGenerated ? '0.5' : '1';
+    card.innerHTML = `
+      <span class="publish-option-icon">${hasPhotos ? '📸' : '📋'}</span>
+      <div style="flex:1;">
+        <div class="publish-option-label">${q.client_name}</div>
+        <div class="publish-option-desc">
+          ${q.event_date || '日期未定'} · ${hasPhotos ? '有照片' : '無照片'}
+          ${alreadyGenerated ? ' · 已產過文章' : ''}
+        </div>
+      </div>
+    `;
+
+    if (!alreadyGenerated) {
+      card.addEventListener('click', () => {
+        closeCasePicker();
+        generatePost(q.id);
+      });
+    }
+
+    listEl.appendChild(card);
+  }
+
+  document.getElementById('casePickerModal').classList.add('visible');
+}
+
+function closeCasePicker() {
+  document.getElementById('casePickerModal').classList.remove('visible');
+}
+
+// ============================================
+// AI 自動產文
+// ============================================
+async function generatePost(quoteId) {
+  const btn = document.getElementById('generateBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  showToast('AI 正在撰寫文章...');
+
+  try {
+    // 1. 載入案例資料
+    const { data: quote } = await db.from('quotes').select('*').eq('id', quoteId).single();
+    if (!quote) throw new Error('找不到案例');
+
+    // 2. 載入品項
+    const { data: items } = await db.from('quote_items').select('item_name, quantity').eq('quote_id', quoteId);
+
+    // 3. 載入照片
+    const { data: photos } = await db.from('photos').select('storage_path, photo_type, notes').eq('quote_id', quoteId);
+
+    // 取得照片公開 URL
+    const photoUrls = (photos || []).map(p => {
+      const { data } = db.storage.from('photos').getPublicUrl(p.storage_path);
+      return { url: data.publicUrl, type: p.photo_type, notes: p.notes };
+    });
+
+    // 4. 呼叫 Gemini 產文
+    const itemList = (items || []).map(i => `${i.item_name} ×${i.quantity}`).join('、');
+    const prompt = `你是「隆泰帳篷企業社」的社群小編，請根據以下施工資訊撰寫一篇 Facebook / Instagram 貼文。
+
+案例資訊：
+- 客戶名稱：${quote.client_name}
+- 活動日期：${quote.event_date || '未知'}
+- 搭設品項：${itemList || '未提供'}
+- 地點：${quote.address || '未提供'}
+- 施工筆記：${quote.worker_notes || '無'}
+
+要求：
+1. 標題要吸引人、簡潔有力（15字以內）
+2. 正文約 100-150 字，語氣專業但親切
+3. 要強調隆泰帳篷的專業與經驗（30年老字號）
+4. 內容要提到使用了什麼設備、服務了什麼活動
+5. 最後加上 3-5 個相關 hashtag
+6. 用繁體中文撰寫
+
+請用以下 JSON 格式回覆（不要加任何其他文字）：
+{"title": "標題", "body": "正文內容", "hashtags": "#帳篷 #嘉義 ..."}`;
+
+    const aiResult = await callGemini(prompt);
+
+    // 5. 解析 AI 回覆
+    let parsed;
+    try {
+      const cleaned = aiResult.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      // 嘗試從回覆中提取 JSON
+      const jsonMatch = aiResult.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('AI 回覆格式錯誤');
+      }
+    }
+
+    // 6. 存入 posts 資料表
+    const { data: newPost, error: insertErr } = await db.from('posts').insert([{
+      quote_id: quoteId,
+      title: parsed.title || '新案例分享',
+      body: parsed.body || '',
+      hashtags: parsed.hashtags || '',
+      photos: photoUrls.map(p => ({ url: p.url, caption: p.notes || '' })),
+      status: 'draft'
+    }]).select().single();
+
+    if (insertErr) throw insertErr;
+
+    showToast('✓ 文章已自動產生！');
+    await loadPosts();
+
+    // 自動打開預覽
+    if (newPost) {
+      setTimeout(() => openDetail(newPost.id), 300);
+    }
+
+  } catch (err) {
+    console.error('產文失敗:', err);
+    showToast('產文失敗：' + err.message);
+  }
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+}
+
+// ============================================
+// 呼叫 Gemini API（含備援模型）
+// ============================================
+async function callGemini(prompt) {
+  for (const model of GEMINI_MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+        })
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+    } catch (e) {
+      console.warn(`模型 ${model} 失敗:`, e);
+    }
+  }
+  throw new Error('所有 AI 模型都忙碌中，請稍後再試');
+}
+
+// ============================================
+// 文章詳細頁
+// ============================================
+function openDetail(postId) {
+  const post = posts.find(p => p.id === postId);
+  if (!post) return;
+  currentPostId = postId;
+
+  const body = document.getElementById('detailBody');
+  const actions = document.getElementById('detailActions');
+  const photos = post.photos || [];
+
+  // 照片
+  const photosHTML = photos.length > 0
+    ? `<div class="detail-photos">${photos.map(p => `<img src="${p.url}" loading="lazy">`).join('')}</div>`
+    : '';
+
+  body.innerHTML = `
+    ${photosHTML}
+    <div class="detail-field">
+      <div class="detail-label">標題</div>
+      <input class="detail-input" id="editTitle" value="${escapeHtml(post.title)}" onchange="saveField('title', this.value)">
+    </div>
+    <div class="detail-field">
+      <div class="detail-label">正文</div>
+      <textarea class="detail-textarea" id="editBody" onchange="saveField('body', this.value)">${escapeHtml(post.body)}</textarea>
+    </div>
+    <div class="detail-field">
+      <div class="detail-label">Hashtags</div>
+      <input class="detail-input" id="editHashtags" value="${escapeHtml(post.hashtags)}" onchange="saveField('hashtags', this.value)">
+    </div>
+    <div class="preview-card">
+      <div class="preview-label">📱 貼文預覽</div>
+      <div class="preview-text" id="previewText">${escapeHtml(post.body)}</div>
+      <div class="preview-tags" id="previewTags">${escapeHtml(post.hashtags)}</div>
+    </div>
+  `;
+
+  // 按鈕
+  let btns = '';
+  if (post.status === 'draft') {
+    btns = `
+      <button class="detail-btn detail-btn-delete" onclick="deletePost('${postId}')">刪除</button>
+      <button class="detail-btn detail-btn-approve" onclick="approvePost('${postId}')">✓ 核准</button>
+    `;
+  } else if (post.status === 'approved') {
+    btns = `
+      <button class="detail-btn detail-btn-delete" onclick="revertToDraft('${postId}')">退回草稿</button>
+      <button class="detail-btn detail-btn-publish" onclick="openPublishModal('${postId}')">🚀 發布</button>
+    `;
+  } else {
+    btns = `<span style="font-size:12px;color:var(--green);font-weight:600;">✓ 已發布</span>`;
+  }
+  actions.innerHTML = btns;
+
+  // 即時預覽
+  const bodyEl = document.getElementById('editBody');
+  if (bodyEl) {
+    bodyEl.addEventListener('input', () => {
+      document.getElementById('previewText').textContent = bodyEl.value;
+    });
+  }
+  const tagsEl = document.getElementById('editHashtags');
+  if (tagsEl) {
+    tagsEl.addEventListener('input', () => {
+      document.getElementById('previewTags').textContent = tagsEl.value;
+    });
+  }
+
+  document.getElementById('detailOverlay').classList.add('visible');
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('visible');
+  currentPostId = null;
+}
+
+// ============================================
+// 文章操作
+// ============================================
+async function saveField(field, value) {
+  const post = posts.find(p => p.id === currentPostId);
+  if (!post) return;
+  post[field] = value;
+  await db.from('posts').update({ [field]: value }).eq('id', currentPostId);
+}
+
+async function approvePost(postId) {
+  await db.from('posts').update({ status: 'approved' }).eq('id', postId);
+  showToast('✓ 文章已核准，可以發布了');
+  closeDetail();
+  await loadPosts();
+}
+
+async function revertToDraft(postId) {
+  await db.from('posts').update({ status: 'draft' }).eq('id', postId);
+  showToast('已退回草稿');
+  closeDetail();
+  await loadPosts();
+}
+
+async function deletePost(postId) {
+  if (!confirm('確定要刪除這篇文章嗎？')) return;
+  await db.from('posts').delete().eq('id', postId);
+  showToast('已刪除');
+  closeDetail();
+  await loadPosts();
+}
+
+// ============================================
+// 發布
+// ============================================
+function openPublishModal(postId) {
+  currentPostId = postId;
+  // 檢查社群平台連接狀態
+  document.getElementById('fbStatusDesc').textContent = FB_PAGE_ACCESS_TOKEN ? '已連接' : '尚未連接，請先設定 Token';
+  document.getElementById('igStatusDesc').textContent = IG_USER_ID ? '已連接' : '尚未連接，請先設定';
+  document.getElementById('pubFB').checked = !!FB_PAGE_ACCESS_TOKEN;
+  document.getElementById('pubIG').checked = !!IG_USER_ID;
+  document.getElementById('publishModal').classList.add('visible');
+}
+
+function closePublishModal() {
+  document.getElementById('publishModal').classList.remove('visible');
+}
+
+async function confirmPublish() {
+  const post = posts.find(p => p.id === currentPostId);
+  if (!post) return;
+
+  const btn = document.getElementById('publishConfirmBtn');
+  btn.textContent = '發布中...';
+  btn.disabled = true;
+
+  const pubWebsite = document.getElementById('pubWebsite').checked;
+  const pubFB = document.getElementById('pubFB').checked && FB_PAGE_ACCESS_TOKEN;
+  const pubIG = document.getElementById('pubIG').checked && IG_USER_ID;
+
+  const results = [];
+
+  try {
+    // 1. 發布到 FB
+    if (pubFB) {
+      try {
+        const fbResult = await publishToFB(post);
+        results.push('✓ FB 粉絲團');
+        await db.from('posts').update({ fb_post_id: fbResult.id }).eq('id', post.id);
+      } catch (e) {
+        results.push('✗ FB 失敗: ' + e.message);
+      }
+    }
+
+    // 2. 發布到 IG
+    if (pubIG) {
+      try {
+        await publishToIG(post);
+        results.push('✓ Instagram');
+      } catch (e) {
+        results.push('✗ IG 失敗: ' + e.message);
+      }
+    }
+
+    // 3. 更新網站（標記已發布）
+    if (pubWebsite) {
+      results.push('✓ 官方網站');
+    }
+
+    // 4. 更新狀態
+    await db.from('posts').update({
+      status: 'published',
+      published_at: new Date().toISOString()
+    }).eq('id', post.id);
+
+    closePublishModal();
+    closeDetail();
+    showToast('發布完成！\n' + results.join('\n'));
+    await loadPosts();
+
+  } catch (err) {
+    showToast('發布失敗: ' + err.message);
+  }
+
+  btn.textContent = '確認發布';
+  btn.disabled = false;
+}
+
+// ============================================
+// FB Graph API
+// ============================================
+async function publishToFB(post) {
+  const message = `${post.title}\n\n${post.body}\n\n${post.hashtags}`;
+  const photos = post.photos || [];
+
+  if (photos.length > 0) {
+    // 多圖發文
+    const photoIds = [];
+    for (const photo of photos.slice(0, 10)) {
+      const res = await fetch(`https://graph.facebook.com/v19.0/${FB_PAGE_ID}/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: photo.url,
+          published: false,
+          access_token: FB_PAGE_ACCESS_TOKEN
+        })
+      });
+      const data = await res.json();
+      if (data.id) photoIds.push({ media_fbid: data.id });
+    }
+
+    const res = await fetch(`https://graph.facebook.com/v19.0/${FB_PAGE_ID}/feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        attached_media: photoIds,
+        access_token: FB_PAGE_ACCESS_TOKEN
+      })
+    });
+    return await res.json();
+  } else {
+    // 純文字發文
+    const res = await fetch(`https://graph.facebook.com/v19.0/${FB_PAGE_ID}/feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, access_token: FB_PAGE_ACCESS_TOKEN })
+    });
+    return await res.json();
+  }
+}
+
+// ============================================
+// IG Graph API
+// ============================================
+async function publishToIG(post) {
+  const caption = `${post.title}\n\n${post.body}\n\n${post.hashtags}`;
+  const photos = post.photos || [];
+  if (photos.length === 0) throw new Error('IG 需要至少一張照片');
+
+  if (photos.length === 1) {
+    // 單圖
+    const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_url: photos[0].url,
+        caption,
+        access_token: FB_PAGE_ACCESS_TOKEN
+      })
+    });
+    const container = await createRes.json();
+
+    const publishRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media_publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creation_id: container.id,
+        access_token: FB_PAGE_ACCESS_TOKEN
+      })
+    });
+    return await publishRes.json();
+  } else {
+    // 多圖 carousel
+    const children = [];
+    for (const photo of photos.slice(0, 10)) {
+      const res = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: photo.url,
+          is_carousel_item: true,
+          access_token: FB_PAGE_ACCESS_TOKEN
+        })
+      });
+      const data = await res.json();
+      if (data.id) children.push(data.id);
+    }
+
+    const carouselRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        media_type: 'CAROUSEL',
+        children: children,
+        caption,
+        access_token: FB_PAGE_ACCESS_TOKEN
+      })
+    });
+    const carousel = await carouselRes.json();
+
+    const publishRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media_publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creation_id: carousel.id,
+        access_token: FB_PAGE_ACCESS_TOKEN
+      })
+    });
+    return await publishRes.json();
+  }
+}
+
+// ============================================
+// 工具函式
+// ============================================
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 3000);
+}
+
+// ============================================
+// 初始化
+// ============================================
+loadPosts();
+</script>
+</body>
+</html>
