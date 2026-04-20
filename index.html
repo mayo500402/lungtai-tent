@@ -3539,6 +3539,106 @@ async function confirmPay(id) {
   renderFilterTabs();
   renderQuotesList();
   renderStats();
+
+  // 自動產生 .ics 行事曆事件
+  addToCalendar(q);
+}
+
+function addToCalendar(q) {
+  // 計算活動日期
+  let eventDateStr = q.eventDate || q.setupDate || '';
+  let dateObj = null;
+  if (eventDateStr && eventDateStr !== '—') {
+    const d = eventDateStr.replace(/\//g, '-');
+    dateObj = new Date(d);
+  }
+  if (!dateObj || isNaN(dateObj.getTime())) {
+    dateObj = new Date(); // fallback 用今天
+  }
+
+  // 格式化日期為 ICS 格式（全天事件用 YYYYMMDD）
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const icsDate = `${y}${m}${day}`;
+
+  // 下一天（全天事件的結束日期）
+  const nextDay = new Date(dateObj);
+  nextDay.setDate(nextDay.getDate() + 1);
+  const ny = nextDay.getFullYear();
+  const nm = String(nextDay.getMonth() + 1).padStart(2, '0');
+  const nd = String(nextDay.getDate()).padStart(2, '0');
+  const icsDateEnd = `${ny}${nm}${nd}`;
+
+  // 組備註：品項明細
+  const itemLines = (q.items || []).map(i => {
+    const sub = (i.qty || 0) * (i.price || 0);
+    return `${i.name} ${i.qty}格 × ${i.price} = ${sub.toLocaleString()}`;
+  });
+  const total = (q.items || []).reduce((s, i) => s + ((i.qty || 0) * (i.price || 0)), 0);
+  itemLines.push(`──────────`);
+  itemLines.push(`總計：NT$ ${total.toLocaleString()}`);
+  itemLines.push(`收款方式：${q.paymentMethod || '現金'}`);
+  if (q.address && q.address !== '—' && q.address !== '') {
+    itemLines.push(`地點：${q.address}`);
+  }
+  if (q.contact && q.contact !== '—') {
+    itemLines.push(`聯絡人：${q.contact} ${q.phone || ''}`);
+  }
+  const description = itemLines.join('\\n');
+
+  // 產生 .ics 內容
+  const now = new Date();
+  const uid = `longtai-${q.no || Date.now()}@lungtai-tent`;
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//隆泰帳篷//報價系統//ZH',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTART;VALUE=DATE:${icsDate}`,
+    `DTEND;VALUE=DATE:${icsDateEnd}`,
+    `SUMMARY:${q.client}`,
+    `DESCRIPTION:${description}`,
+    q.address && q.address !== '—' ? `LOCATION:${q.address.split('http')[0].trim()}` : '',
+    'STATUS:CONFIRMED',
+    `DTSTAMP:${y}${m}${day}T000000Z`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].filter(Boolean).join('\r\n');
+
+  // 下載 .ics 檔案
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  // 在 iPhone 上用 Web Share API（更自然）
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], `${q.client}.ics`, { type: 'text/calendar' })] })) {
+    const file = new File([blob], `${q.client}.ics`, { type: 'text/calendar' });
+    navigator.share({
+      title: q.client,
+      files: [file]
+    }).catch(() => {
+      // fallback: 直接下載
+      downloadICS(url, q.client);
+    });
+  } else {
+    downloadICS(url, q.client);
+  }
+}
+
+function downloadICS(url, client) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${client}.ics`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 // 標記為未成交
