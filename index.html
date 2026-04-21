@@ -3611,22 +3611,29 @@ function addToCalendar(q) {
     'END:VCALENDAR'
   ].filter(Boolean).join('\r\n');
 
-  // 產生 .ics 檔案下載
-  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${q.client}.ics`;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 3000);
-
-  // 提示用戶
+  // iOS Safari 相容：用 base64 data URI 直接導向
+  const b64 = btoa(unescape(encodeURIComponent(icsContent)));
+  const dataUrl = 'data:text/calendar;base64,' + b64;
+  
+  // 建立隱藏的 iframe 載入 .ics（iOS Safari 會自動觸發行事曆）
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = dataUrl;
+  document.body.appendChild(iframe);
+  
   setTimeout(() => {
-    alert(`📅 行事曆檔案已下載！\n\n請到 iPhone 的「檔案」App 或下載列表，\n點開「${q.client}.ics」\n→ 選擇「加入行事曆」\n→ 行事曆選「工作」\n→ 完成！`);
-  }, 500);
+    // 如果 iframe 方式沒反應，fallback 用 location
+    try {
+      const blob = new Blob([icsContent], { type: 'text/calendar' });
+      const url = URL.createObjectURL(blob);
+      window.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch(e) {
+      console.error('行事曆匯出失敗:', e);
+    }
+  }, 1000);
+  
+  setTimeout(() => document.body.removeChild(iframe), 5000);
 }
 
 // 取消收款（改回未收款）
