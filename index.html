@@ -3611,9 +3611,22 @@ function addToCalendar(q) {
     'END:VCALENDAR'
   ].filter(Boolean).join('\r\n');
 
-  // 用 data URI 方式讓 iPhone 直接開啟行事曆
-  const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent);
-  window.open(dataUri, '_blank');
+  // 產生 .ics 檔案下載
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${q.client}.ics`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+
+  // 提示用戶
+  setTimeout(() => {
+    alert(`📅 行事曆檔案已下載！\n\n請到 iPhone 的「檔案」App 或下載列表，\n點開「${q.client}.ics」\n→ 選擇「加入行事曆」\n→ 行事曆選「工作」\n→ 完成！`);
+  }, 500);
 }
 
 // 取消收款（改回未收款）
