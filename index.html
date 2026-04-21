@@ -3609,36 +3609,9 @@ function addToCalendar(q) {
     'END:VCALENDAR'
   ].filter(Boolean).join('\r\n');
 
-  // 下載 .ics 檔案
-  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-
-  // 在 iPhone 上用 Web Share API（更自然）
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], `${q.client}.ics`, { type: 'text/calendar' })] })) {
-    const file = new File([blob], `${q.client}.ics`, { type: 'text/calendar' });
-    navigator.share({
-      title: q.client,
-      files: [file]
-    }).catch(() => {
-      // fallback: 直接下載
-      downloadICS(url, q.client);
-    });
-  } else {
-    downloadICS(url, q.client);
-  }
-}
-
-function downloadICS(url, client) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${client}.ics`;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 1000);
+  // 用 data URI 方式讓 iPhone 直接開啟行事曆
+  const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent);
+  window.open(dataUri, '_blank');
 }
 
 // 標記為未成交
