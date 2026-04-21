@@ -3136,6 +3136,8 @@ function renderDetail() {
     bottomBtn += `<button class="btn" style="background:#e8e8e8;color:#666;margin-top:8px;" onclick="markLost('${q.id}')">✗ 未成交</button>`;
   } else if (q.status === 'lost') {
     bottomBtn = `<button class="btn" style="background:var(--green);color:#fff;" onclick="reactivateQuote('${q.id}')">↩ 重新啟用此報價單</button>`;
+  } else if (q.status === 'paid') {
+    bottomBtn = `<button class="btn" style="background:#e8e8e8;color:#666;" onclick="undoPay('${q.id}')">↩ 取消收款（改回未收款）</button>`;
   }
   // 所有狀態都加刪除按鈕
   bottomBtn += `<button class="btn" style="background:transparent;color:var(--ink-faint);border:1px solid var(--line);margin-top:8px;" onclick="deleteQuote('${q.id}')">🗑 刪除此報價單</button>`;
@@ -3612,6 +3614,22 @@ function addToCalendar(q) {
   // 用 data URI 方式讓 iPhone 直接開啟行事曆
   const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsContent);
   window.open(dataUri, '_blank');
+}
+
+// 取消收款（改回未收款）
+async function undoPay(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`確定要取消「${q.client}」的收款？\n\n狀態會改回「未收款」。`)) return;
+
+  q.status = 'unpaid';
+  if (q.cloud_id) {
+    await db.from('quotes').update({ status: 'unpaid', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
+  }
+  renderDetail();
+  renderFilterTabs();
+  renderQuotesList();
+  renderStats();
 }
 
 // 標記為未成交
