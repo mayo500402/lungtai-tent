@@ -376,13 +376,27 @@ const SUPABASE_URL = 'https://htsmeyvqcpcwdtpszpve.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__c2PdqONSUkS-pJTrDYJhg_PMoD4vQZ';
 
 // ============================================
-// 🤖 GEMINI AI 設定（與報價簿共用）
+// 🤖 GEMINI AI 設定（從瀏覽器儲存讀取，避免公開曝露）
 // ============================================
-const GEMINI_API_KEY = 'AIzaSyD3xYSu2hh1eDzCCrFO0IqBgtBL0sUOaWM';
+let GEMINI_API_KEY = localStorage.getItem('gemini_key') || '';
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite'];
 
+// 第一次使用時會自動彈出輸入框
+function ensureGeminiKey() {
+  if (!GEMINI_API_KEY) {
+    const key = prompt('請輸入 Gemini API Key（只需要輸入一次，之後會自動記住）：');
+    if (key && key.trim()) {
+      GEMINI_API_KEY = key.trim();
+      localStorage.setItem('gemini_key', GEMINI_API_KEY);
+      return true;
+    }
+    return false;
+  }
+  return true;
+}
+
 // ============================================
-// 🔗 社群平台設定（需要自行填入）
+// 🔗 社群平台設定
 // ============================================
 const FB_PAGE_ACCESS_TOKEN = 'EAAteWZAh3DrABRa1Dtb4nmEAUtuSy9KVq8rnYj9OIkbiZA5aahZBCq5QitD4AebtcJZAIEpQDwHGFO4qzvvCVM9sKtOrdW6ruIPq53IO60lxbDHQktIQcrHYBZA592Xd7NkTJs6fZAlzvzCuKJmVdQpdkQ7DlIEsV5J1AABjfNZBcOt0NZBsxRNX2V58lSwpuS1lPLPQcoORZA7ycMbegZB5pwoCk4rramUAdbh1oZD';
 const FB_PAGE_ID = '266142200498958';
@@ -549,6 +563,10 @@ function closeCasePicker() {
 // AI 自動產文
 // ============================================
 async function generatePost(quoteId) {
+  if (!ensureGeminiKey()) {
+    showToast('需要 Gemini API Key 才能產文');
+    return;
+  }
   const btn = document.getElementById('generateBtn');
   btn.classList.add('loading');
   btn.disabled = true;
