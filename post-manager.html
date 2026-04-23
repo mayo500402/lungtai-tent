@@ -601,40 +601,52 @@ async function generatePost(quoteId) {
 
     // 4. 呼叫 Gemini 產文
     console.log('🤖 呼叫 Gemini...');
-    const prompt = `你是「隆泰帳篷企業社」的社群小編，請根據以下施工資訊撰寫一篇 Facebook / Instagram 貼文。
+    const prompt = `你是「隆泰帳篷企業社」的社群小編。請根據以下資訊寫一篇社群貼文。
 
-案例資訊：
-- 客戶名稱：${quote.client_name}
-- 活動日期：${quote.event_date_start || '未知'}
-- 搭設品項：${itemList || '未提供'}
-- 地點：${quote.setup_address || '未提供'}
-- 施工筆記：${quote.worker_notes || '無'}
+客戶：${quote.client_name}
+日期：${quote.event_date_start || '未知'}
+品項：${itemList || '未提供'}
+地點：${quote.setup_address || '未提供'}
+備註：${quote.worker_notes || '無'}
 
-要求：
-1. 標題要吸引人、簡潔有力（15字以內）
-2. 正文約 100-150 字，語氣專業但親切
-3. 要強調隆泰帳篷的專業與經驗（30年老字號）
-4. 內容要提到使用了什麼設備、服務了什麼活動
-5. 最後加上 3-5 個相關 hashtag
-6. 用繁體中文撰寫
-
-請用以下 JSON 格式回覆（不要加任何其他文字）：
-{"title": "標題", "body": "正文內容", "hashtags": "#帳篷 #嘉義 ..."}`;
+請直接回覆 JSON，不要加其他文字，不要用 markdown 格式：
+{"title":"15字以內的標題","body":"100到150字的正文，語氣專業親切，提到30年經驗","hashtags":"#隆泰帳篷 #嘉義 加3到5個相關標籤"}`;
 
     const aiResult = await callGemini(prompt);
-    console.log('✓ AI 回覆:', aiResult.substring(0, 100));
+    console.log('✓ AI 回覆:', aiResult.substring(0, 200));
 
-    // 5. 解析 AI 回覆
+    // 5. 解析 AI 回覆（多種格式容錯）
     let parsed;
     try {
-      const cleaned = aiResult.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      // 先清除 markdown 標記
+      let cleaned = aiResult.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      // 移除開頭的非 JSON 文字
+      const firstBrace = cleaned.indexOf('{');
+      if (firstBrace > 0) cleaned = cleaned.substring(firstBrace);
+      // 移除結尾的非 JSON 文字
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (lastBrace >= 0) cleaned = cleaned.substring(0, lastBrace + 1);
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      const jsonMatch = aiResult.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
+      console.warn('JSON 解析失敗，嘗試手動提取:', e);
+      // 用正則提取各欄位
+      const titleMatch = aiResult.match(/["']title["']\s*[:：]\s*["']([^"']+)["']/);
+      const bodyMatch = aiResult.match(/["']body["']\s*[:：]\s*["']([\s\S]*?)["']\s*[,}]/);
+      const hashMatch = aiResult.match(/["']hashtags["']\s*[:：]\s*["']([^"']+)["']/);
+      
+      if (titleMatch || bodyMatch) {
+        parsed = {
+          title: titleMatch ? titleMatch[1] : '案例分享',
+          body: bodyMatch ? bodyMatch[1] : aiResult.substring(0, 200),
+          hashtags: hashMatch ? hashMatch[1] : '#隆泰帳篷 #嘉義 #帳篷出租'
+        };
       } else {
-        throw new Error('AI 回覆格式錯誤: ' + aiResult.substring(0, 200));
+        // 最後手段：把整段回覆當作正文
+        parsed = {
+          title: quote.client_name + ' 案例分享',
+          body: aiResult.replace(/```[\s\S]*?```/g, '').replace(/[{}"\[\]]/g, '').trim().substring(0, 300),
+          hashtags: '#隆泰帳篷 #嘉義 #帳篷出租'
+        };
       }
     }
 
