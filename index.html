@@ -4072,6 +4072,7 @@ function getClientName() {
 }
 
 async function shareAsImage() {
+  alert('shareAsImage 被呼叫了！');
   try {
     const el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
     if (!el) { alert('請先開啟一張報價單'); return; }
