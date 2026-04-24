@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- html2canvas for generating image -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- dom-to-image for screenshot -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
 <!-- jsPDF for PDF generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- Supabase client -->
@@ -4075,7 +4075,7 @@ async function shareAsImage() {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) { alert('請先開啟一張報價單'); return; }
 
-  // 把資料填到語音開單頁的報價單（那個 html2canvas 能截）
+  // 用語音開單頁的報價單模板
   renderQuote({
     client: { name: q.client, tax: q.tax || '—', contact: q.contact || '—', phone: q.phone || '—' },
     setupDate: q.setupDate || '—',
@@ -4086,8 +4086,7 @@ async function shareAsImage() {
     remark: q.remark || ''
   });
 
-  // 等渲染完成
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 500));
 
   const el = document.getElementById('quoteDoc');
   if (!el) { alert('報價單元素不存在'); return; }
@@ -4103,25 +4102,29 @@ async function shareAsImage() {
   });
 
   try {
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fffef9', useCORS: true, logging: false });
+    var blob = await domtoimage.toBlob(el, { 
+      bgcolor: '#fffef9',
+      style: { transform: 'none', margin: '0' },
+      width: el.scrollWidth,
+      height: el.scrollHeight
+    });
     hidden.forEach(h => h.node.style.display = h.prev);
 
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     if (!blob) { alert('圖片產生失敗'); return; }
 
-    const filename = '報價單-' + q.client + '.png';
+    var filename = '報價單-' + q.client + '.png';
     if (navigator.share) {
-      const file = new File([blob], filename, { type: 'image/png' });
+      var file = new File([blob], filename, { type: 'image/png' });
       try {
         await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
         return;
       } catch(e) { if (e.name === 'AbortError') return; }
     }
-    // fallback 下載
     downloadBlob(blob, filename);
   } catch(err) {
     hidden.forEach(h => h.node.style.display = h.prev);
-    alert('截圖失敗：' + err.message);
+    alert('截圖失敗：' + err.message + '\n\n改用文字分享...');
+    shareAsText();
   }
 }
 
@@ -4139,7 +4142,7 @@ async function shareAsPDF() {
     remark: q.remark || ''
   });
 
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 500));
 
   const el = document.getElementById('quoteDoc');
   if (!el) { alert('報價單元素不存在'); return; }
@@ -4154,30 +4157,32 @@ async function shareAsPDF() {
   });
 
   try {
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fffef9', logging: false });
+    var dataUrl = await domtoimage.toPng(el, {
+      bgcolor: '#fffef9',
+      width: el.scrollWidth,
+      height: el.scrollHeight
+    });
     hidden.forEach(h => h.node.style.display = h.prev);
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfMaxHeight = pdf.internal.pageSize.getHeight();
-    const imgData = canvas.toDataURL('image/png');
-    const imgProps = pdf.getImageProperties(imgData);
-    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+    const imgProps = pdf.getImageProperties(dataUrl);
+    const imgHeight = (imgProps.height * pdfW) / imgProps.width;
 
-    if (imgHeight <= pdfMaxHeight) {
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+    if (imgHeight <= pdfH) {
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfW, imgHeight);
     } else {
-      const scale = pdfMaxHeight / imgHeight;
-      const scaledWidth = pdfWidth * scale;
-      pdf.addImage(imgData, 'PNG', (pdfWidth - scaledWidth) / 2, 0, scaledWidth, pdfMaxHeight);
+      const scale = pdfH / imgHeight;
+      pdf.addImage(dataUrl, 'PNG', (pdfW - pdfW*scale)/2, 0, pdfW*scale, pdfH);
     }
 
-    const filename = '報價單-' + q.client + '.pdf';
-    const pdfBlob = pdf.output('blob');
+    var filename = '報價單-' + q.client + '.pdf';
+    var pdfBlob = pdf.output('blob');
 
     if (navigator.share) {
-      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+      var file = new File([pdfBlob], filename, { type: 'application/pdf' });
       try {
         await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
         return;
@@ -4188,6 +4193,23 @@ async function shareAsPDF() {
     hidden.forEach(h => h.node.style.display = h.prev);
     alert('PDF 產生失敗：' + err.message);
   }
+}
+
+// 文字版 fallback
+async function shareAsText() {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) return;
+  const lines = ['━━━━━━━━━━━━', '隆泰帳篷企業社 · 報價單', '━━━━━━━━━━━━', '', '客戶：' + q.client];
+  if (q.contact && q.contact !== '—') lines.push('聯絡人：' + q.contact + ' ' + (q.phone || ''));
+  if (q.setupDate && q.setupDate !== '—') lines.push('進場：' + q.setupDate);
+  if (q.eventDate && q.eventDate !== '—') lines.push('活動：' + q.eventDate);
+  lines.push('', '【品項明細】');
+  let total = 0;
+  (q.items || []).forEach(i => { const s = (i.qty||0)*(i.price||0); total += s; lines.push(i.name + ' ×' + i.qty + ' = NT$' + s.toLocaleString()); });
+  lines.push('合計：NT$ ' + total.toLocaleString(), '', '隆泰帳篷企業社 · 康博凱 0980-231-010');
+  const text = lines.join('\n');
+  if (navigator.share) { try { await navigator.share({ title: q.client, text: text }); } catch(e) {} }
+  else { try { await navigator.clipboard.writeText(text); alert('✓ 已複製到剪貼簿'); } catch(e) {} }
 }
 
 function downloadBlob(blob, filename) {
