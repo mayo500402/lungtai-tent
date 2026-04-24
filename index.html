@@ -4056,25 +4056,13 @@ function getClientName() {
 }
 
 async function shareAsImage() {
-  // 顯示狀態
-  const status = document.getElementById('shareStatusDetail') || document.getElementById('shareStatus');
-  if (status) { status.style.display = 'block'; status.textContent = '📸 產生圖片中...'; }
-
+  const status = document.getElementById('shareStatusDetail');
   try {
-    // 直接找報價單元素
+    if (status) { status.style.display = 'block'; status.textContent = '📸 產生圖片中...'; }
+
     const el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
-    if (!el) {
-      if (status) status.textContent = '✗ 找不到報價單';
-      alert('請先開啟一張報價單');
-      return;
-    }
+    if (!el) { alert('錯誤：找不到報價單元素'); return; }
 
-    if (typeof html2canvas === 'undefined') {
-      if (status) status.textContent = '✗ 工具載入中，請稍後再試';
-      return;
-    }
-
-    // 隱藏不該出現的元素
     const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
     const hidden = [];
     hideSelectors.forEach(sel => {
@@ -4084,41 +4072,26 @@ async function shareAsImage() {
       });
     });
 
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      backgroundColor: '#fffef9',
-      useCORS: true,
-      logging: false
-    });
-
-    // 還原
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fffef9', useCORS: true, logging: false });
     hidden.forEach(h => h.node.style.display = h.prev);
 
-    canvas.toBlob(async (blob) => {
-      if (!blob) { if (status) status.textContent = '✗ 圖片產生失敗'; return; }
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) { alert('錯誤：圖片產生失敗'); return; }
 
-      const client = getClientName();
-      const filename = `報價單-${client}-${new Date().toISOString().slice(0,10)}.png`;
+    const client = getClientName();
+    const filename = '報價單-' + client + '.png';
 
-      if (navigator.share && navigator.canShare) {
-        const file = new File([blob], filename, { type: 'image/png' });
-        if (navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
-            if (status) status.textContent = '✓ 已分享！';
-            return;
-          } catch (err) {
-            if (err.name === 'AbortError') { if (status) status.textContent = '已取消'; return; }
-          }
-        }
-      }
-
+    if (navigator.share) {
+      const file = new File([blob], filename, { type: 'image/png' });
+      await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
+      if (status) status.textContent = '✓ 已分享！';
+    } else {
       downloadBlob(blob, filename);
-      if (status) status.textContent = '✓ 圖片已下載！';
-    }, 'image/png');
+      if (status) status.textContent = '✓ 已下載！';
+    }
   } catch (err) {
-    if (status) status.textContent = '✗ 失敗：' + err.message;
-    console.error('shareAsImage error:', err);
+    alert('分享失敗：' + err.message + '\n\n' + err.stack);
+    if (status) { status.style.display = 'block'; status.textContent = '✗ ' + err.message; }
   }
 }
 
