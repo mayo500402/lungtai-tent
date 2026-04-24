@@ -3048,16 +3048,12 @@ let currentDetailId = null;
 let detailEditMode = false;
 
 function showDetail(id) {
-  alert('showDetail: id=' + id + '\nsavedQuotes 數量=' + savedQuotes.length + '\n前3個id=' + savedQuotes.slice(0,3).map(x=>x.id).join(', '));
   const q = savedQuotes.find(x => x.id === id);
   if (!q) {
-    // 嘗試用 cloud_id 找
     const q2 = savedQuotes.find(x => x.cloud_id === parseInt(id.replace('cloud-', '')));
     if (q2) {
-      alert('用 cloud_id 找到了: ' + q2.client);
       currentDetailId = q2.id;
     } else {
-      alert('找不到訂單！id=' + id);
       return;
     }
   } else {
@@ -3077,9 +3073,7 @@ function showDetail(id) {
 function renderDetail() {
   try {
   const q = savedQuotes.find(x => x.id === currentDetailId);
-  if (!q) { alert('renderDetail: 找不到 id=' + currentDetailId); return; }
-
-  alert('renderDetail 開始: ' + q.client + '\nitems: ' + (q.items ? q.items.length : 'null') + '\nstatus: ' + q.status);
+  if (!q) return;
 
   const s = statusMap[q.status] || { label: q.status || '未知', cls: '' };
   const cashActive = q.paymentMethod === '現金' ? 'active' : '';
@@ -3157,7 +3151,7 @@ function renderDetail() {
     bottomBtn = `<button class="btn" style="background:var(--green);color:#fff;" onclick="reactivateQuote('${q.id}')">↩ 重新啟用此報價單</button>`;
   } else if (q.status === 'paid') {
     bottomBtn = `
-      <button class="btn" style="background:#2a4564;color:#fff;" onclick="addToCalendar(savedQuotes.find(x=>x.id==='${q.id}'))">📅 加入行事曆</button>
+      <button class="btn" style="background:#2a4564;color:#fff;" id="calendarBtn_${q.id.replace(/[^a-zA-Z0-9]/g,'_')}">📅 加入行事曆</button>
       <button class="btn" style="background:#e8e8e8;color:#666;margin-top:8px;" onclick="undoPay('${q.id}')">↩ 取消收款（改回未收款）</button>`;
   }
   // 所有狀態都加刪除按鈕
@@ -3343,6 +3337,14 @@ function renderDetail() {
     pdfBtn.addEventListener('click', function() { shareAsPDF(); });
     shareBtns.appendChild(pdfBtn);
   }
+
+  // 動態綁定行事曆按鈕
+  const calBtnId = 'calendarBtn_' + (q.id || '').replace(/[^a-zA-Z0-9]/g, '_');
+  const calBtn = document.getElementById(calBtnId);
+  if (calBtn) {
+    calBtn.addEventListener('click', function() { addToCalendar(q); });
+  }
+
   } catch (renderErr) {
     console.error('renderDetail 錯誤:', renderErr);
     alert('頁面載入錯誤：' + renderErr.message);
