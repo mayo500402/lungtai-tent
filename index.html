@@ -1736,6 +1736,10 @@ body {
 </style>
 </head>
 <body>
+<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:red;padding:8px;text-align:center;">
+  <button onclick="alert('JS可以執行！html2canvas=' + (typeof html2canvas) + ', jspdf=' + (typeof window.jspdf))" style="padding:10px 20px;font-size:16px;font-weight:bold;">🔴 點我測試 JS</button>
+</div>
+<div style="height:50px;"></div>
 
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
