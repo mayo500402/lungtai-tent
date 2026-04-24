@@ -3282,11 +3282,8 @@ function renderDetail() {
           <span class="line-logo">L</span>
           Send to LINE · 傳送給客戶
         </div>
-        <div style="display:flex;gap:8px;">
-          <button style="flex:1;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-card);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;" onclick="shareAsImage()">📸 傳送圖片</button>
-          <button style="flex:1;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-card);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;" onclick="shareAsPDF()">📄 傳送 PDF</button>
-        </div>
-        <div class="share-status" id="shareStatusDetail" style="display:none;text-align:center;padding:8px;font-size:12px;color:var(--ink-soft);margin-top:6px;"></div>
+        <div id="shareButtons" style="display:flex;gap:8px;"></div>
+        <div id="shareStatusDetail" style="display:none;text-align:center;padding:8px;font-size:12px;color:var(--ink-soft);margin-top:6px;"></div>
       </div>
 
       <div class="quote-actions">
@@ -3311,6 +3308,25 @@ function renderDetail() {
     deposit: 0.3,
     remark: q.remark
   };
+
+  // 動態建立分享按鈕（避免 template literal 引號衝突）
+  const shareBtns = document.getElementById('shareButtons');
+  if (shareBtns) {
+    shareBtns.innerHTML = '';
+    const btnStyle = 'flex:1;padding:12px;border:1px solid #ddd;border-radius:10px;background:#fffef9;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;';
+    
+    const imgBtn = document.createElement('button');
+    imgBtn.style.cssText = btnStyle;
+    imgBtn.textContent = '📸 傳送圖片';
+    imgBtn.addEventListener('click', function() { shareAsImage(); });
+    shareBtns.appendChild(imgBtn);
+
+    const pdfBtn = document.createElement('button');
+    pdfBtn.style.cssText = btnStyle;
+    pdfBtn.textContent = '📄 傳送 PDF';
+    pdfBtn.addEventListener('click', function() { shareAsPDF(); });
+    shareBtns.appendChild(pdfBtn);
+  }
 }
 
 function toggleEditMode() {
