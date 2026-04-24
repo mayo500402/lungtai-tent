@@ -4072,122 +4072,54 @@ function getClientName() {
 }
 
 async function shareAsImage() {
-  alert('shareAsImage 被呼叫了！');
-  try {
-    const el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
-    if (!el) { alert('請先開啟一張報價單'); return; }
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (!q) { alert('請先開啟一張報價單'); return; }
 
-    // 隱藏內部元素
-    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
-    const hidden = [];
-    hideSelectors.forEach(sel => {
-      el.querySelectorAll(sel).forEach(node => {
-        hidden.push({ node, prev: node.style.display });
-        node.style.display = 'none';
-      });
-    });
+  const lines = [];
+  lines.push('━━━━━━━━━━━━');
+  lines.push('隆泰帳篷企業社 · 報價單');
+  lines.push('━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('客戶：' + (q.client || ''));
+  if (q.contact && q.contact !== '—') lines.push('聯絡人：' + q.contact + ' ' + (q.phone || ''));
+  if (q.tax && q.tax !== '—') lines.push('統編：' + q.tax);
+  if (q.setupDate && q.setupDate !== '—') lines.push('進場：' + q.setupDate);
+  if (q.eventDate && q.eventDate !== '—') lines.push('活動：' + q.eventDate);
+  if (q.address && q.address !== '—' && q.address !== '') lines.push('地點：' + q.address);
+  lines.push('');
+  lines.push('【品項明細】');
+  let total = 0;
+  (q.items || []).forEach(function(i) {
+    var sub = (i.qty || 0) * (i.price || 0);
+    total += sub;
+    lines.push(i.name + ' ×' + i.qty + ' @' + i.price + ' = NT$' + sub.toLocaleString());
+  });
+  lines.push('──────────');
+  lines.push('合計：NT$ ' + total.toLocaleString());
+  if (q.remark && q.remark !== '—' && q.remark !== '') lines.push('備註：' + q.remark);
+  lines.push('');
+  lines.push('隆泰帳篷企業社');
+  lines.push('負責人：康博凱');
+  lines.push('電話：0980-231-010');
+  lines.push('統編：85780745');
 
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fffef9', useCORS: true, logging: false });
-    hidden.forEach(h => h.node.style.display = h.prev);
+  var text = lines.join('\n');
 
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) { alert('圖片產生失敗'); return; }
-
-    const client = getClientName();
-    const filename = '報價單-' + client + '.png';
-
-    if (navigator.share) {
-      const file = new File([blob], filename, { type: 'image/png' });
-      try {
-        await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
-      } catch (err) {
-        if (err.name !== 'AbortError') downloadBlob(blob, filename);
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: '報價單 · ' + q.client, text: text });
+    } catch(e) {
+      if (e.name !== 'AbortError') {
+        try { await navigator.clipboard.writeText(text); alert('✓ 已複製到剪貼簿，請到 LINE 貼上'); } catch(e2) {}
       }
-    } else {
-      downloadBlob(blob, filename);
     }
-  } catch (err) {
-    console.error('shareAsImage error:', err);
-    // fallback 文字版
-    shareAsText();
+  } else {
+    try { await navigator.clipboard.writeText(text); alert('✓ 已複製到剪貼簿'); } catch(e) { prompt('請複製：', text); }
   }
 }
 
 async function shareAsPDF() {
-  try {
-    const el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
-    if (!el) { alert('請先開啟一張報價單'); return; }
-
-    const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
-    const hidden = [];
-    hideSelectors.forEach(sel => {
-      el.querySelectorAll(sel).forEach(node => {
-        hidden.push({ node, prev: node.style.display });
-        node.style.display = 'none';
-      });
-    });
-
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fffef9', logging: false });
-    hidden.forEach(h => h.node.style.display = h.prev);
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfMaxHeight = pdf.internal.pageSize.getHeight();
-    const imgData = canvas.toDataURL('image/png');
-    const imgProps = pdf.getImageProperties(imgData);
-    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    if (imgHeight <= pdfMaxHeight) {
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
-    } else {
-      const scale = pdfMaxHeight / imgHeight;
-      const scaledWidth = pdfWidth * scale;
-      pdf.addImage(imgData, 'PNG', (pdfWidth - scaledWidth) / 2, 0, scaledWidth, pdfMaxHeight);
-    }
-
-    const client = getClientName();
-    const filename = '報價單-' + client + '.pdf';
-    const pdfBlob = pdf.output('blob');
-
-    if (navigator.share) {
-      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-      try {
-        await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
-      } catch (err) {
-        if (err.name !== 'AbortError') pdf.save(filename);
-      }
-    } else {
-      pdf.save(filename);
-    }
-  } catch (err) {
-    console.error('shareAsPDF error:', err);
-    shareAsText();
-  }
-}
-
-// 文字版 fallback
-async function shareAsText() {
-  const q = savedQuotes.find(x => x.id === currentDetailId);
-  if (!q) return;
-  const lines = ['━━━━━━━━━━━━', '隆泰帳篷企業社 · 報價單', '━━━━━━━━━━━━', '', '客戶：' + q.client];
-  if (q.contact && q.contact !== '—') lines.push('聯絡人：' + q.contact + ' ' + (q.phone || ''));
-  if (q.setupDate && q.setupDate !== '—') lines.push('進場：' + q.setupDate);
-  if (q.eventDate && q.eventDate !== '—') lines.push('活動：' + q.eventDate);
-  lines.push('', '【品項明細】');
-  let total = 0;
-  (q.items || []).forEach(i => {
-    const sub = (i.qty||0) * (i.price||0);
-    total += sub;
-    lines.push(i.name + ' ×' + i.qty + ' = NT$' + sub.toLocaleString());
-  });
-  lines.push('─────────', '合計：NT$ ' + total.toLocaleString(), '', '隆泰帳篷企業社', '康博凱 0980-231-010');
-  const text = lines.join('\n');
-  if (navigator.share) {
-    try { await navigator.share({ title: q.client, text: text }); } catch(e) {}
-  } else {
-    try { await navigator.clipboard.writeText(text); alert('✓ 已複製到剪貼簿'); } catch(e) { prompt('請複製：', text); }
-  }
+  await shareAsImage();
 }
 
 function downloadBlob(blob, filename) {
