@@ -3066,7 +3066,9 @@ function showDetail(id) {
 function renderDetail() {
   try {
   const q = savedQuotes.find(x => x.id === currentDetailId);
-  if (!q) return;
+  if (!q) { alert('renderDetail: 找不到 id=' + currentDetailId); return; }
+
+  alert('renderDetail 開始: ' + q.client + '\nitems: ' + (q.items ? q.items.length : 'null') + '\nstatus: ' + q.status);
 
   const s = statusMap[q.status] || { label: q.status || '未知', cls: '' };
   const cashActive = q.paymentMethod === '現金' ? 'active' : '';
