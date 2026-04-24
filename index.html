@@ -3071,7 +3071,6 @@ function showDetail(id) {
 }
 
 function renderDetail() {
-  try {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) return;
 
@@ -3287,11 +3286,10 @@ function renderDetail() {
         </div>
       </div>
 
-      <div id="shareAndActions"></div>
+      <div id="detailActions"></div>
     </div>
   `;
 
-  // 用純 JS 建立所有按鈕（避免 template literal 引號衝突）
   currentQuoteData = {
     client: { name: q.client, tax: q.tax, contact: q.contact, phone: q.phone },
     setupDate: q.setupDate,
@@ -3301,104 +3299,37 @@ function renderDetail() {
     remark: q.remark
   };
 
-  const container = document.getElementById('shareAndActions');
-  if (container) {
-    // LINE 分享按鈕
-    const shareRow = document.createElement('div');
-    shareRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
+  // 用 innerHTML 建立按鈕（最簡單最相容的方式）
+  var actHTML = '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+  actHTML += '<button class="btn btn-secondary" style="flex:1" onclick="shareAsImage()">📸 傳送圖片</button>';
+  actHTML += '<button class="btn btn-secondary" style="flex:1" onclick="shareAsPDF()">📄 傳送 PDF</button>';
+  actHTML += '</div>';
 
-    const imgBtn = document.createElement('button');
-    imgBtn.style.cssText = 'flex:1;padding:14px;border:1px solid #ddd;border-radius:10px;background:#fffef9;font-size:14px;font-weight:600;cursor:pointer;';
-    imgBtn.textContent = '📸 傳送圖片';
-    imgBtn.onclick = function() { shareAsImage(); };
-    shareRow.appendChild(imgBtn);
-
-    const pdfBtn = document.createElement('button');
-    pdfBtn.style.cssText = 'flex:1;padding:14px;border:1px solid #ddd;border-radius:10px;background:#fffef9;font-size:14px;font-weight:600;cursor:pointer;';
-    pdfBtn.textContent = '📄 傳送 PDF';
-    pdfBtn.onclick = function() { shareAsPDF(); };
-    shareRow.appendChild(pdfBtn);
-
-    container.appendChild(shareRow);
-
-    // bottomBtn 也用 JS 建立
-    if (q.status === 'unpaid') {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-success';
-      btn.textContent = '✓ 確認收款';
-      btn.onclick = function() { confirmPay(q.id); };
-      container.appendChild(btn);
-    } else if (q.status === 'paid') {
-      const calBtn = document.createElement('button');
-      calBtn.className = 'btn';
-      calBtn.style.cssText = 'background:#2a4564;color:#fff;';
-      calBtn.textContent = '📅 加入行事曆';
-      calBtn.onclick = function() { addToCalendar(q); };
-      container.appendChild(calBtn);
-
-      const undoBtn = document.createElement('button');
-      undoBtn.className = 'btn';
-      undoBtn.style.cssText = 'background:#e8e8e8;color:#666;margin-top:8px;';
-      undoBtn.textContent = '↩ 取消收款（改回未收款）';
-      undoBtn.onclick = function() { undoPay(q.id); };
-      container.appendChild(undoBtn);
-    } else if (q.status === 'pending') {
-      const accBtn = document.createElement('button');
-      accBtn.className = 'btn btn-success';
-      accBtn.textContent = q.isSubcontract ? '✓ 成交（發包）' : '✓ 成交並派工給嘉豐';
-      accBtn.onclick = function() { acceptQuote(q.id); };
-      container.appendChild(accBtn);
-
-      const lostBtn = document.createElement('button');
-      lostBtn.className = 'btn';
-      lostBtn.style.cssText = 'background:#e8e8e8;color:#666;margin-top:8px;';
-      lostBtn.textContent = '✗ 未成交';
-      lostBtn.onclick = function() { markLost(q.id); };
-      container.appendChild(lostBtn);
-    } else if (q.status === 'accepted' && !q.isSubcontract) {
-      const dBtn = document.createElement('button');
-      dBtn.className = 'btn';
-      dBtn.style.cssText = 'background:var(--blue);color:#fff;';
-      dBtn.textContent = '📤 派工給嘉豐';
-      dBtn.onclick = function() { dispatchQuote(q.id); };
-      container.appendChild(dBtn);
-    } else if (q.status === 'dispatched' || q.status === 'setup-done') {
-      const payBtn = document.createElement('button');
-      payBtn.className = 'btn btn-success';
-      payBtn.textContent = '✓ 確認收款';
-      payBtn.onclick = function() { confirmPay(q.id); };
-      container.appendChild(payBtn);
-    } else if (q.status === 'lost') {
-      const reBtn = document.createElement('button');
-      reBtn.className = 'btn';
-      reBtn.style.cssText = 'background:var(--green);color:#fff;';
-      reBtn.textContent = '↩ 重新啟用此報價單';
-      reBtn.onclick = function() { reactivateQuote(q.id); };
-      container.appendChild(reBtn);
-    }
-
-    // 刪除按鈕
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn';
-    delBtn.style.cssText = 'background:transparent;color:var(--ink-faint);border:1px solid var(--line);margin-top:8px;';
-    delBtn.textContent = '🗑 刪除此報價單';
-    delBtn.onclick = function() { deleteQuote(q.id); };
-    container.appendChild(delBtn);
-
-    // 施工筆記
-    if (q.worker_notes) {
-      const noteDiv = document.createElement('div');
-      noteDiv.className = 'internal-bar';
-      noteDiv.style.cssText = 'margin-top:12px;background:#e8eef5;border-radius:10px;padding:12px 14px;border-left:3px solid #2a4564;';
-      noteDiv.innerHTML = '<div style="font-size:11px;color:#2a4564;font-weight:600;margin-bottom:4px;">📋 嘉豐施工筆記（內部，客戶看不到）</div><div style="font-size:13px;color:var(--ink);white-space:pre-wrap;">' + q.worker_notes.replace(/\n/g,'<br>') + '</div>';
-      container.appendChild(noteDiv);
-    }
+  if (q.status === 'unpaid') {
+    actHTML += '<button class="btn btn-success" onclick="confirmPayCurrent()">✓ 確認收款</button>';
+  } else if (q.status === 'paid') {
+    actHTML += '<button class="btn" style="background:#2a4564;color:#fff" onclick="addToCalendarCurrent()">📅 加入行事曆</button>';
+    actHTML += '<button class="btn" style="background:#e8e8e8;color:#666;margin-top:8px" onclick="undoPayCurrent()">↩ 取消收款</button>';
+  } else if (q.status === 'pending') {
+    actHTML += '<button class="btn btn-success" onclick="acceptQuoteCurrent()">✓ 成交' + (q.isSubcontract ? '' : '派工') + '</button>';
+    actHTML += '<button class="btn" style="background:#e8e8e8;color:#666;margin-top:8px" onclick="markLostCurrent()">✗ 未成交</button>';
+  } else if (q.status === 'accepted' && !q.isSubcontract) {
+    actHTML += '<button class="btn" style="background:var(--blue);color:#fff" onclick="dispatchQuoteCurrent()">📤 派工給嘉豐</button>';
+  } else if (q.status === 'dispatched' || q.status === 'setup-done') {
+    actHTML += '<button class="btn btn-success" onclick="confirmPayCurrent()">✓ 確認收款</button>';
+  } else if (q.status === 'lost') {
+    actHTML += '<button class="btn" style="background:var(--green);color:#fff" onclick="reactivateQuoteCurrent()">↩ 重新啟用</button>';
   }
 
-  } catch (renderErr) {
-    console.error('renderDetail 錯誤:', renderErr);
-    alert('頁面載入錯誤：' + renderErr.message);
+  actHTML += '<button class="btn" style="background:transparent;color:var(--ink-faint);border:1px solid var(--line);margin-top:8px" onclick="deleteQuoteCurrent()">🗑 刪除此報價單</button>';
+
+  if (q.worker_notes) {
+    actHTML += '<div class="internal-bar" style="margin-top:12px;background:#e8eef5;border-radius:10px;padding:12px 14px;border-left:3px solid #2a4564">';
+    actHTML += '<div style="font-size:11px;color:#2a4564;font-weight:600;margin-bottom:4px">📋 嘉豐施工筆記</div>';
+    actHTML += '<div style="font-size:13px;white-space:pre-wrap">' + (q.worker_notes || '').replace(/\n/g, '<br>') + '</div></div>';
   }
+
+  document.getElementById('detailActions').innerHTML = actHTML;
 }
 
 function toggleEditMode() {
@@ -3410,6 +3341,19 @@ function toggleEditMode() {
       if (firstEditable) firstEditable.focus();
     }, 50);
   }
+}
+
+// 詳細頁按鈕的 wrapper（用 currentDetailId 取 id，避免引號問題）
+function confirmPayCurrent() { confirmPay(currentDetailId); }
+function undoPayCurrent() { undoPay(currentDetailId); }
+function acceptQuoteCurrent() { acceptQuote(currentDetailId); }
+function markLostCurrent() { markLost(currentDetailId); }
+function reactivateQuoteCurrent() { reactivateQuote(currentDetailId); }
+function dispatchQuoteCurrent() { dispatchQuote(currentDetailId); }
+function deleteQuoteCurrent() { deleteQuote(currentDetailId); }
+function addToCalendarCurrent() {
+  const q = savedQuotes.find(x => x.id === currentDetailId);
+  if (q) addToCalendar(q);
 }
 
 function saveField(field, value) {
