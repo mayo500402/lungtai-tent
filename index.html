@@ -4040,6 +4040,10 @@ function getClientName() {
 }
 
 async function shareAsImage() {
+  try {
+    alert('開始產生圖片...\n\nhtml2canvas: ' + (typeof html2canvas) + '\njspdf: ' + (typeof window.jspdf));
+  } catch(e) {}
+
   // 顯示狀態
   const status = document.getElementById('shareStatusDetail') || document.getElementById('shareStatus');
   if (status) { status.style.display = 'block'; status.textContent = '📸 產生圖片中...'; }
