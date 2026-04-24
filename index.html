@@ -1736,10 +1736,34 @@ body {
 </style>
 </head>
 <body>
-<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:red;padding:8px;text-align:center;">
-  <button onclick="alert('JS可以執行！html2canvas=' + (typeof html2canvas) + ', jspdf=' + (typeof window.jspdf))" style="padding:10px 20px;font-size:16px;font-weight:bold;">🔴 點我測試 JS</button>
+<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:red;padding:8px;text-align:center;display:flex;gap:6px;justify-content:center;">
+  <button onclick="testShare()" style="padding:8px 12px;font-size:14px;font-weight:bold;">🔴 測試傳圖</button>
+  <button onclick="testDetailBtns()" style="padding:8px 12px;font-size:14px;font-weight:bold;">🔴 測試按鈕</button>
 </div>
-<div style="height:50px;"></div>
+<div style="height:45px;"></div>
+<script>
+function testShare() {
+  var el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
+  if (!el) { alert('找不到報價單元素。\n\n請先進到一張報價單的詳細頁再按此按鈕。\n\n#detailContent存在: ' + !!document.getElementById('detailContent') + '\n.quote-doc數量: ' + document.querySelectorAll('.quote-doc').length); return; }
+  alert('找到報價單！開始截圖...');
+  html2canvas(el, {scale:1, backgroundColor:'#fffef9'}).then(function(canvas) {
+    canvas.toBlob(function(blob) {
+      if (!blob) { alert('截圖失敗'); return; }
+      var file = new File([blob], 'test.png', {type:'image/png'});
+      if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+        navigator.share({files:[file], title:'測試'}).catch(function(){});
+      } else {
+        alert('截圖成功！大小=' + blob.size + ' bytes\n但此裝置不支援 Web Share');
+      }
+    });
+  }).catch(function(err) { alert('html2canvas 錯誤: ' + err.message); });
+}
+function testDetailBtns() {
+  var container = document.getElementById('shareAndActions');
+  var btns = container ? container.querySelectorAll('button') : [];
+  alert('shareAndActions 元素: ' + (container ? '存在' : '不存在') + '\n按鈕數量: ' + btns.length + '\n\ndetailContent innerHTML 長度: ' + (document.getElementById('detailContent') ? document.getElementById('detailContent').innerHTML.length : 0));
+}
+</script>
 
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
