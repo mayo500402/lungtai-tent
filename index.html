@@ -4101,16 +4101,33 @@ async function shareAsImage() {
     });
   });
 
-  try {
-    var blob = await domtoimage.toBlob(el, { 
-      bgcolor: '#fffef9',
-      style: { transform: 'none', margin: '0' },
-      width: el.scrollWidth,
-      height: el.scrollHeight
-    });
-    hidden.forEach(h => h.node.style.display = h.prev);
+  // 也暫時隱藏印章（base64 圖片可能導致問題）
+  const stamps = el.querySelectorAll('.stamp-block, img[src*="data:image"]');
+  const hiddenStamps = [];
+  stamps.forEach(s => {
+    hiddenStamps.push({ node: s, prev: s.style.display });
+    s.style.display = 'none';
+  });
 
-    if (!blob) { alert('圖片產生失敗'); return; }
+  try {
+    var dataUrl = await domtoimage.toPng(el, {
+      bgcolor: '#fffef9',
+      width: el.scrollWidth,
+      height: el.scrollHeight,
+      style: {
+        'transform': 'none',
+        'transform-origin': 'top left'
+      }
+    });
+
+    hidden.forEach(h => h.node.style.display = h.prev);
+    hiddenStamps.forEach(h => h.node.style.display = h.prev);
+
+    // dataUrl 轉 blob
+    var res = await fetch(dataUrl);
+    var blob = await res.blob();
+
+    if (!blob || blob.size < 100) { alert('圖片太小，可能截圖失敗'); return; }
 
     var filename = '報價單-' + q.client + '.png';
     if (navigator.share) {
@@ -4123,7 +4140,8 @@ async function shareAsImage() {
     downloadBlob(blob, filename);
   } catch(err) {
     hidden.forEach(h => h.node.style.display = h.prev);
-    alert('截圖失敗：' + err.message + '\n\n改用文字分享...');
+    hiddenStamps.forEach(h => h.node.style.display = h.prev);
+    alert('截圖失敗：' + (err.message || err) + '\n\n改用文字分享...');
     shareAsText();
   }
 }
@@ -4156,13 +4174,22 @@ async function shareAsPDF() {
     });
   });
 
+  const stamps = el.querySelectorAll('.stamp-block, img[src*="data:image"]');
+  const hiddenStamps = [];
+  stamps.forEach(s => {
+    hiddenStamps.push({ node: s, prev: s.style.display });
+    s.style.display = 'none';
+  });
+
   try {
     var dataUrl = await domtoimage.toPng(el, {
       bgcolor: '#fffef9',
       width: el.scrollWidth,
       height: el.scrollHeight
     });
+
     hidden.forEach(h => h.node.style.display = h.prev);
+    hiddenStamps.forEach(h => h.node.style.display = h.prev);
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -4191,7 +4218,8 @@ async function shareAsPDF() {
     pdf.save(filename);
   } catch(err) {
     hidden.forEach(h => h.node.style.display = h.prev);
-    alert('PDF 產生失敗：' + err.message);
+    hiddenStamps.forEach(h => h.node.style.display = h.prev);
+    alert('PDF 產生失敗：' + (err.message || err));
   }
 }
 
