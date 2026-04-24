@@ -4071,173 +4071,176 @@ function getClientName() {
   return '客戶';
 }
 
+// 載入圖片 helper
+function loadImg(src) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() { resolve(img); };
+    img.onerror = function() { resolve(null); };
+    img.src = src;
+  });
+}
+
+function getSealSrc(idx) {
+  var imgs = document.querySelectorAll('.stamp-block img');
+  if (imgs[idx]) return imgs[idx].src;
+  return '';
+}
+
 async function shareAsImage() {
-  const q = savedQuotes.find(x => x.id === currentDetailId);
+  var q = savedQuotes.find(function(x) { return x.id === currentDetailId; });
   if (!q) { alert('請先開啟一張報價單'); return; }
 
-  // 用語音開單頁的報價單模板
-  renderQuote({
-    client: { name: q.client, tax: q.tax || '—', contact: q.contact || '—', phone: q.phone || '—' },
-    setupDate: q.setupDate || '—',
-    eventDate: q.eventDate || '—',
-    address: q.address || '',
-    items: q.items || [],
-    deposit: 0.3,
-    remark: q.remark || ''
+  var items = q.items || [];
+  var W = 750, pad = 40, lineH = 26;
+  var itemsH = items.length * lineH + 50;
+  var H = 220 + itemsH + 250;
+
+  var canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  var c = canvas.getContext('2d');
+
+  c.fillStyle = '#fffef9';
+  c.fillRect(0, 0, W, H);
+
+  // 頂部綠線
+  c.fillStyle = '#4a6741';
+  c.fillRect(0, 0, W, 6);
+
+  // 標題
+  c.fillStyle = '#2a2118';
+  c.font = 'bold 26px serif';
+  c.textAlign = 'center';
+  c.fillText('隆泰帳篷企業社', W/2, 42);
+  c.font = '11px sans-serif';
+  c.fillStyle = '#999';
+  c.fillText('LONGTAI TENT RENTAL · QUOTATION', W/2, 60);
+
+  // 編號
+  c.textAlign = 'right';
+  c.fillText(q.no || '', W - pad, 42);
+
+  // 分隔線
+  c.strokeStyle = '#e0ddd5'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(pad, 72); c.lineTo(W-pad, 72); c.stroke();
+
+  // 報價方
+  var y = 92;
+  c.textAlign = 'left'; c.fillStyle = '#888'; c.font = '10px sans-serif';
+  c.fillText('FROM · 報價方', pad, y);
+  y += 18;
+  c.fillStyle = '#2a2118'; c.font = 'bold 15px sans-serif';
+  c.fillText('隆泰帳篷企業社', pad, y);
+  y += 16;
+  c.font = '11px sans-serif'; c.fillStyle = '#555';
+  c.fillText('統編 85780745 · 負責人 康博凱 · 0980-231-010', pad, y);
+
+  // 客戶
+  y += 28;
+  c.fillStyle = '#888'; c.font = '10px sans-serif';
+  c.fillText('TO · 客戶', pad, y);
+  c.textAlign = 'right';
+  if (q.setupDate && q.setupDate !== '—') c.fillText('進場 ' + q.setupDate, W-pad, y);
+  y += 18;
+  c.textAlign = 'left'; c.fillStyle = '#2a2118'; c.font = 'bold 15px sans-serif';
+  c.fillText(q.client || '', pad, y);
+  c.textAlign = 'right'; c.font = '11px sans-serif'; c.fillStyle = '#555';
+  if (q.eventDate && q.eventDate !== '—') c.fillText('活動 ' + q.eventDate, W-pad, y);
+  y += 16;
+  c.textAlign = 'left'; c.font = '11px sans-serif'; c.fillStyle = '#555';
+  var ci = [];
+  if (q.tax && q.tax !== '—') ci.push('統編 ' + q.tax);
+  if (q.contact && q.contact !== '—') ci.push(q.contact);
+  if (q.phone && q.phone !== '—') ci.push(q.phone);
+  c.fillText(ci.join(' · '), pad, y);
+
+  // 品項表頭
+  y = 220;
+  c.fillStyle = '#4a6741';
+  c.fillRect(pad, y, W-pad*2, 28);
+  c.fillStyle = '#fff'; c.font = 'bold 12px sans-serif';
+  c.textAlign = 'left'; c.fillText('品項', pad+10, y+18);
+  c.textAlign = 'center'; c.fillText('數量', W-220, y+18); c.fillText('單價', W-140, y+18);
+  c.textAlign = 'right'; c.fillText('小計', W-pad-10, y+18);
+  y += 28;
+
+  // 品項
+  var total = 0;
+  c.font = '12px sans-serif';
+  items.forEach(function(item, idx) {
+    var sub = (item.qty||0) * (item.price||0);
+    total += sub;
+    c.fillStyle = idx%2===0 ? '#f5f3ee' : '#fffef9';
+    c.fillRect(pad, y, W-pad*2, lineH);
+    c.fillStyle = '#2a2118';
+    c.textAlign = 'left'; c.fillText(item.name||'', pad+10, y+17);
+    c.textAlign = 'center'; c.fillText(String(item.qty||0), W-220, y+17);
+    c.fillText('NT$'+(item.price||0).toLocaleString(), W-140, y+17);
+    c.textAlign = 'right'; c.fillText('NT$'+sub.toLocaleString(), W-pad-10, y+17);
+    y += lineH;
   });
 
-  await new Promise(r => setTimeout(r, 500));
+  // 合計
+  y += 8;
+  c.strokeStyle = '#2a2118'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(pad, y); c.lineTo(W-pad, y); c.stroke();
+  y += 25;
+  c.font = 'bold 16px sans-serif'; c.fillStyle = '#2a2118'; c.textAlign = 'right';
+  c.fillText('合計 NT$ ' + total.toLocaleString(), W-pad-10, y);
 
-  const el = document.getElementById('quoteDoc');
-  if (!el) { alert('報價單元素不存在'); return; }
-
-  // 隱藏不該出現的元素
-  const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions'];
-  const hidden = [];
-  hideSelectors.forEach(sel => {
-    el.querySelectorAll(sel).forEach(node => {
-      hidden.push({ node, prev: node.style.display });
-      node.style.display = 'none';
-    });
-  });
-
-  // 也暫時隱藏印章（base64 圖片可能導致問題）
-  const stamps = el.querySelectorAll('.stamp-block, img[src*="data:image"]');
-  const hiddenStamps = [];
-  stamps.forEach(s => {
-    hiddenStamps.push({ node: s, prev: s.style.display });
-    s.style.display = 'none';
-  });
-
-  try {
-    var dataUrl = await domtoimage.toPng(el, {
-      bgcolor: '#fffef9',
-      width: el.scrollWidth,
-      height: el.scrollHeight,
-      style: {
-        'transform': 'none',
-        'transform-origin': 'top left'
-      }
-    });
-
-    hidden.forEach(h => h.node.style.display = h.prev);
-    hiddenStamps.forEach(h => h.node.style.display = h.prev);
-
-    // dataUrl 轉 blob
-    var res = await fetch(dataUrl);
-    var blob = await res.blob();
-
-    if (!blob || blob.size < 100) { alert('圖片太小，可能截圖失敗'); return; }
-
-    var filename = '報價單-' + q.client + '.png';
-    if (navigator.share) {
-      var file = new File([blob], filename, { type: 'image/png' });
-      try {
-        await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
-        return;
-      } catch(e) { if (e.name === 'AbortError') return; }
-    }
-    downloadBlob(blob, filename);
-  } catch(err) {
-    hidden.forEach(h => h.node.style.display = h.prev);
-    hiddenStamps.forEach(h => h.node.style.display = h.prev);
-    alert('截圖失敗：' + (err.message || err) + '\n\n改用文字分享...');
-    shareAsText();
+  // 備註
+  if (q.remark && q.remark !== '—' && q.remark !== '') {
+    y += 25;
+    c.font = '11px sans-serif'; c.fillStyle = '#888'; c.textAlign = 'left';
+    c.fillText('備註：' + q.remark, pad, y);
   }
+
+  // 印章
+  y += 20;
+  var seal1 = await loadImg(getSealSrc(0));
+  var seal2 = await loadImg(getSealSrc(1));
+  if (seal1) {
+    var sw = 100, sh = Math.round(100 * seal1.height / seal1.width);
+    c.drawImage(seal1, W-pad-sw-55, y, sw, sh);
+  }
+  if (seal2) {
+    c.drawImage(seal2, W-pad-50, y+5, 45, 45);
+  }
+  y += 60;
+
+  // 客戶簽章
+  c.strokeStyle = '#ccc'; c.lineWidth = 0.5;
+  c.setLineDash([3,3]);
+  c.strokeRect(pad, y, W-pad*2, 45);
+  c.setLineDash([]);
+  c.font = '10px sans-serif'; c.fillStyle = '#bbb'; c.textAlign = 'center';
+  c.fillText('客戶簽章 Client Signature', W/2, y+27);
+  y += 55;
+
+  c.font = '9px sans-serif'; c.fillStyle = '#bbb'; c.textAlign = 'center';
+  c.fillText('嘉義縣朴子市永和里36-6巷27號', W/2, y);
+
+  // 裁切
+  var out = document.createElement('canvas');
+  out.width = W;
+  out.height = y + 15;
+  out.getContext('2d').drawImage(canvas, 0, 0);
+
+  out.toBlob(async function(blob) {
+    if (!blob) { alert('圖片產生失敗'); return; }
+    var fn = '報價單-' + (q.client||'') + '.png';
+    if (navigator.share) {
+      var f = new File([blob], fn, {type:'image/png'});
+      try { await navigator.share({files:[f], title:'隆泰帳篷報價單'}); return; }
+      catch(e) { if (e.name==='AbortError') return; }
+    }
+    downloadBlob(blob, fn);
+  }, 'image/png');
 }
 
 async function shareAsPDF() {
-  const q = savedQuotes.find(x => x.id === currentDetailId);
-  if (!q) { alert('請先開啟一張報價單'); return; }
-
-  renderQuote({
-    client: { name: q.client, tax: q.tax || '—', contact: q.contact || '—', phone: q.phone || '—' },
-    setupDate: q.setupDate || '—',
-    eventDate: q.eventDate || '—',
-    address: q.address || '',
-    items: q.items || [],
-    deposit: 0.3,
-    remark: q.remark || ''
-  });
-
-  await new Promise(r => setTimeout(r, 500));
-
-  const el = document.getElementById('quoteDoc');
-  if (!el) { alert('報價單元素不存在'); return; }
-
-  const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions'];
-  const hidden = [];
-  hideSelectors.forEach(sel => {
-    el.querySelectorAll(sel).forEach(node => {
-      hidden.push({ node, prev: node.style.display });
-      node.style.display = 'none';
-    });
-  });
-
-  const stamps = el.querySelectorAll('.stamp-block, img[src*="data:image"]');
-  const hiddenStamps = [];
-  stamps.forEach(s => {
-    hiddenStamps.push({ node: s, prev: s.style.display });
-    s.style.display = 'none';
-  });
-
-  try {
-    var dataUrl = await domtoimage.toPng(el, {
-      bgcolor: '#fffef9',
-      width: el.scrollWidth,
-      height: el.scrollHeight
-    });
-
-    hidden.forEach(h => h.node.style.display = h.prev);
-    hiddenStamps.forEach(h => h.node.style.display = h.prev);
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = pdf.internal.pageSize.getHeight();
-    const imgProps = pdf.getImageProperties(dataUrl);
-    const imgHeight = (imgProps.height * pdfW) / imgProps.width;
-
-    if (imgHeight <= pdfH) {
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfW, imgHeight);
-    } else {
-      const scale = pdfH / imgHeight;
-      pdf.addImage(dataUrl, 'PNG', (pdfW - pdfW*scale)/2, 0, pdfW*scale, pdfH);
-    }
-
-    var filename = '報價單-' + q.client + '.pdf';
-    var pdfBlob = pdf.output('blob');
-
-    if (navigator.share) {
-      var file = new File([pdfBlob], filename, { type: 'application/pdf' });
-      try {
-        await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
-        return;
-      } catch(e) { if (e.name === 'AbortError') return; }
-    }
-    pdf.save(filename);
-  } catch(err) {
-    hidden.forEach(h => h.node.style.display = h.prev);
-    hiddenStamps.forEach(h => h.node.style.display = h.prev);
-    alert('PDF 產生失敗：' + (err.message || err));
-  }
-}
-
-// 文字版 fallback
-async function shareAsText() {
-  const q = savedQuotes.find(x => x.id === currentDetailId);
-  if (!q) return;
-  const lines = ['━━━━━━━━━━━━', '隆泰帳篷企業社 · 報價單', '━━━━━━━━━━━━', '', '客戶：' + q.client];
-  if (q.contact && q.contact !== '—') lines.push('聯絡人：' + q.contact + ' ' + (q.phone || ''));
-  if (q.setupDate && q.setupDate !== '—') lines.push('進場：' + q.setupDate);
-  if (q.eventDate && q.eventDate !== '—') lines.push('活動：' + q.eventDate);
-  lines.push('', '【品項明細】');
-  let total = 0;
-  (q.items || []).forEach(i => { const s = (i.qty||0)*(i.price||0); total += s; lines.push(i.name + ' ×' + i.qty + ' = NT$' + s.toLocaleString()); });
-  lines.push('合計：NT$ ' + total.toLocaleString(), '', '隆泰帳篷企業社 · 康博凱 0980-231-010');
-  const text = lines.join('\n');
-  if (navigator.share) { try { await navigator.share({ title: q.client, text: text }); } catch(e) {} }
-  else { try { await navigator.clipboard.writeText(text); alert('✓ 已複製到剪貼簿'); } catch(e) {} }
+  await shareAsImage();
 }
 
 function downloadBlob(blob, filename) {
