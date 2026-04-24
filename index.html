@@ -3048,6 +3048,7 @@ let currentDetailId = null;
 let detailEditMode = false;
 
 function showDetail(id) {
+  alert('showDetail 被呼叫，id=' + id);
   const q = savedQuotes.find(x => x.id === id);
   if (!q) return;
   currentDetailId = id;
