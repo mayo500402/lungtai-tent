@@ -1754,18 +1754,34 @@ function testGoDetail() {
 function testShare() {
   var el = document.querySelector('#detailContent .quote-doc');
   if (!el) { alert('找不到報價單，請先按「進第1張單」'); return; }
-  alert('找到報價單，開始截圖...');
-  html2canvas(el, {scale:1, backgroundColor:'#fffef9'}).then(function(canvas) {
+  
+  // 隱藏印章和內部元素
+  var stamps = el.querySelectorAll('.stamp-block, .internal-bar, .line-send-section');
+  stamps.forEach(function(s) { s.style.display = 'none'; });
+  
+  alert('開始截圖（已隱藏印章）...');
+  
+  var timeout = setTimeout(function() {
+    alert('截圖超時（超過10秒），可能是頁面太複雜');
+    stamps.forEach(function(s) { s.style.display = ''; });
+  }, 10000);
+  
+  html2canvas(el, {scale:1, backgroundColor:'#fffef9', logging:true, useCORS:true}).then(function(canvas) {
+    clearTimeout(timeout);
+    stamps.forEach(function(s) { s.style.display = ''; });
     canvas.toBlob(function(blob) {
-      if (!blob) { alert('截圖失敗'); return; }
+      if (!blob) { alert('截圖失敗：blob為空'); return; }
+      alert('截圖成功！大小=' + Math.round(blob.size/1024) + 'KB');
       var file = new File([blob], 'test.png', {type:'image/png'});
       if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-        navigator.share({files:[file], title:'測試'}).catch(function(e){ alert('分享取消或錯誤:'+e.message); });
-      } else {
-        alert('截圖成功！大小=' + blob.size + ' bytes');
+        navigator.share({files:[file], title:'報價單'}).catch(function(e){ alert('分享錯誤:'+e.message); });
       }
     });
-  }).catch(function(err) { alert('html2canvas錯誤: ' + err.message); });
+  }).catch(function(err) { 
+    clearTimeout(timeout);
+    stamps.forEach(function(s) { s.style.display = ''; });
+    alert('html2canvas錯誤: ' + err.message); 
+  });
 }
 </script>
 
