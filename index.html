@@ -1381,6 +1381,9 @@ body {
   cursor: pointer;
   font-family: inherit;
   text-align: left;
+  position: relative;
+  z-index: 101;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.1);
 }
 
 .share-option:active { background: var(--line-soft); }
@@ -2035,7 +2038,7 @@ body {
     <div class="share-sheet-title">傳送到 LINE</div>
     <div class="share-sheet-sub">選擇傳送格式 · 開啟後請選擇客戶</div>
 
-    <button class="share-option" onclick="event.preventDefault(); event.stopPropagation(); shareAsImage(); return false;" type="button">
+    <button class="share-option" onclick="shareAsImage()" type="button">
       <div class="share-option-icon img">IMG</div>
       <div class="share-option-text">
         <div class="share-option-title">傳送圖片（推薦）</div>
@@ -2043,7 +2046,7 @@ body {
       </div>
     </button>
 
-    <button class="share-option" onclick="event.preventDefault(); event.stopPropagation(); shareAsPDF(); return false;" type="button">
+    <button class="share-option" onclick="shareAsPDF()" type="button">
       <div class="share-option-icon pdf">PDF</div>
       <div class="share-option-text">
         <div class="share-option-title">傳送 PDF 檔</div>
@@ -2067,23 +2070,9 @@ const SUPABASE_URL = 'https://htsmeyvqcpcwdtpszpve.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__c2PdqONSUkS-pJTrDYJhg_PMoD4vQZ';
 
 // ============================================
-// 🤖 GEMINI AI 設定（從瀏覽器儲存讀取，避免公開曝露）
+// 🤖 GEMINI AI 設定
 // ============================================
-let GEMINI_API_KEY = localStorage.getItem('gemini_key') || '';
-
-// 第一次使用時自動彈出輸入框
-function ensureGeminiKey() {
-  if (!GEMINI_API_KEY) {
-    const key = prompt('請輸入 Gemini API Key（只需要輸入一次，之後會自動記住）：');
-    if (key && key.trim()) {
-      GEMINI_API_KEY = key.trim();
-      localStorage.setItem('gemini_key', GEMINI_API_KEY);
-      return true;
-    }
-    return false;
-  }
-  return true;
-}
+const GEMINI_API_KEY = 'AIzaSyCrc_T0BCqSg_XrIFyJsp45sL253dKiP8Y';
 
 // 多個模型備援 — 某個忙碌就換下一個
 const GEMINI_MODELS = [
@@ -2099,10 +2088,6 @@ function getGeminiEndpoint(model) {
 
 // 用 AI 解析口語描述，轉成結構化報價單
 async function parseVoiceWithAI(transcript, modelIndex = 0, retryCount = 0) {
-  if (!ensureGeminiKey()) {
-    showError('需要 Gemini API Key 才能使用語音報價');
-    return null;
-  }
   const currentModel = GEMINI_MODELS[modelIndex];
   console.log(`🤖 [${currentModel}] 送去 AI 解析:`, transcript, retryCount > 0 ? `(重試 ${retryCount})` : '');
 
@@ -2864,9 +2849,6 @@ function voiceAppend() {
 
 // AI 合併追加內容到現有報價單
 async function parseAppendWithAI(existingData, appendText, modelIndex = 0, retryCount = 0) {
-  if (!ensureGeminiKey()) {
-    throw new Error('需要 Gemini API Key');
-  }
   const currentModel = GEMINI_MODELS[modelIndex];
   console.log(`🤖 [${currentModel}] 合併追加:`, appendText);
 
@@ -3157,6 +3139,10 @@ function renderDetail() {
     bottomBtn += `<button class="btn" style="background:#e8e8e8;color:#666;margin-top:8px;" onclick="markLost('${q.id}')">✗ 未成交</button>`;
   } else if (q.status === 'lost') {
     bottomBtn = `<button class="btn" style="background:var(--green);color:#fff;" onclick="reactivateQuote('${q.id}')">↩ 重新啟用此報價單</button>`;
+  } else if (q.status === 'paid') {
+    bottomBtn = `
+      <button class="btn" style="background:#2a4564;color:#fff;" onclick="addToCalendar(savedQuotes.find(x=>x.id==='${q.id}'))">📅 加入行事曆</button>
+      <button class="btn" style="background:#e8e8e8;color:#666;margin-top:8px;" onclick="undoPay('${q.id}')">↩ 取消收款（改回未收款）</button>`;
   }
   // 所有狀態都加刪除按鈕
   bottomBtn += `<button class="btn" style="background:transparent;color:var(--ink-faint);border:1px solid var(--line);margin-top:8px;" onclick="deleteQuote('${q.id}')">🗑 刪除此報價單</button>`;
@@ -3302,7 +3288,7 @@ function renderDetail() {
       </div>
 
       <div class="quote-actions">
-        <button class="btn btn-secondary">匯出 PDF</button>
+        <button class="btn btn-secondary" onclick="openShareSheet()">📨 傳 LINE / 匯出 PDF</button>
         ${bottomBtn}
       </div>
 
@@ -3556,6 +3542,96 @@ async function confirmPay(id) {
     }
   }
 
+  renderDetail();
+  renderFilterTabs();
+  renderQuotesList();
+  renderStats();
+}
+
+// 加入行事曆 — 複製內容到剪貼簿
+async function addToCalendar(q) {
+  if (!q) return;
+
+  // 計算活動日期
+  let eventDateStr = q.eventDate || q.setupDate || '';
+  let dateObj = null;
+  if (eventDateStr && eventDateStr !== '—') {
+    dateObj = new Date(eventDateStr.replace(/\//g, '-'));
+  }
+  if (!dateObj || isNaN(dateObj.getTime())) dateObj = new Date();
+
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const icsDate = `${y}${m}${day}`;
+  const nextDay = new Date(dateObj);
+  nextDay.setDate(nextDay.getDate() + 1);
+  const icsDateEnd = `${nextDay.getFullYear()}${String(nextDay.getMonth()+1).padStart(2,'0')}${String(nextDay.getDate()).padStart(2,'0')}`;
+
+  // 組備註
+  const itemLines = (q.items || []).map(i => {
+    const sub = (i.qty || 0) * (i.price || 0);
+    return `${i.name} ${i.qty}格 x ${i.price} = ${sub.toLocaleString()}`;
+  });
+  const total = (q.items || []).reduce((s, i) => s + ((i.qty || 0) * (i.price || 0)), 0);
+  itemLines.push('----------');
+  itemLines.push(`Total: NT$ ${total.toLocaleString()}`);
+  if (q.paymentMethod) itemLines.push(`Pay: ${q.paymentMethod}`);
+  const description = itemLines.join('\\n');
+
+  const uid = `longtai-${q.no || Date.now()}@lungtai`;
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//LongTai//QuoteSys//ZH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTART;VALUE=DATE:${icsDate}`,
+    `DTEND;VALUE=DATE:${icsDateEnd}`,
+    `SUMMARY:${q.client}`,
+    `DESCRIPTION:${description}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+
+  try {
+    showSyncing('產生行事曆');
+    const fileName = `calendar/${(q.no || Date.now()).replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+    const file = new Blob([icsContent], { type: 'text/calendar' });
+
+    await db.storage.from('photos').upload(fileName, file, {
+      contentType: 'text/calendar',
+      upsert: true
+    });
+
+    const { data: urlData } = db.storage.from('photos').getPublicUrl(fileName);
+    showSynced('已產生');
+
+    // 用真實 URL 開啟，iOS Safari 會觸發「加入行事曆」
+    window.location.href = urlData.publicUrl;
+  } catch (err) {
+    console.error('行事曆匯出失敗:', err);
+    // fallback: 複製到剪貼簿
+    const text = `${q.client}\n\n${itemLines.join('\n').replace(/\\n/g, '\n')}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(`📅 行事曆檔案產生失敗，已改為複製到剪貼簿！\n\n請手動打開行事曆 App：\n1. 到「${q.eventDate || '活動日期'}」那天\n2. 新增事件，行事曆選「工作」\n3. 標題：${q.client}\n4. 備註欄長按貼上`);
+    } catch(e) {
+      alert('行事曆匯出失敗，請手動記錄');
+    }
+  }
+}
+
+// 取消收款（改回未收款）
+async function undoPay(id) {
+  const q = savedQuotes.find(x => x.id === id);
+  if (!q) return;
+  if (!confirm(`確定要取消「${q.client}」的收款？\n\n狀態會改回「未收款」。`)) return;
+
+  q.status = 'unpaid';
+  if (q.cloud_id) {
+    await db.from('quotes').update({ status: 'unpaid', updated_at: new Date().toISOString() }).eq('id', q.cloud_id);
+  }
   renderDetail();
   renderFilterTabs();
   renderQuotesList();
@@ -3969,7 +4045,19 @@ async function shareAsImage() {
 
   try {
     const el = window._shareTarget;
-    if (!el) { status.textContent = '✗ 找不到報價單'; return; }
+    if (!el) {
+      status.textContent = '✗ 找不到報價單，請先開啟一張報價單';
+      console.error('_shareTarget is null');
+      return;
+    }
+
+    // 檢查 html2canvas 是否載入
+    if (typeof html2canvas === 'undefined') {
+      status.textContent = '✗ 圖片工具載入中，請稍後再試';
+      return;
+    }
+
+    console.log('📸 開始截圖... 目標元素:', el.className);
 
     // 隱藏不該出現在圖片上的元素
     const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
@@ -4041,6 +4129,15 @@ async function shareAsPDF() {
   try {
     const el = window._shareTarget;
     if (!el) { status.textContent = '✗ 找不到報價單'; return; }
+
+    if (typeof html2canvas === 'undefined') {
+      status.textContent = '✗ 圖片工具載入中，請稍後再試';
+      return;
+    }
+    if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
+      status.textContent = '✗ PDF 工具載入中，請稍後再試';
+      return;
+    }
 
     // 隱藏內部元素
     const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
