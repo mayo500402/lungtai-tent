@@ -2072,26 +2072,44 @@ const SUPABASE_KEY = 'sb_publishable__c2PdqONSUkS-pJTrDYJhg_PMoD4vQZ';
 // ============================================
 // 🤖 GEMINI AI 設定
 // ============================================
-const GEMINI_API_KEY = 'AIzaSyCrc_T0BCqSg_XrIFyJsp45sL253dKiP8Y';
+// Gemini AI 透過 Supabase Edge Function（API key 不在前端）
+const GEMINI_PROXY_URL = SUPABASE_URL + '/functions/v1/rapid-task';
 
-// 多個模型備援 — 某個忙碌就換下一個
-const GEMINI_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-flash-latest',
-  'gemini-2.5-flash-lite',
-  'gemini-flash-lite-latest'
-];
+async function callGeminiProxy(prompt) {
+  const response = await fetch(GEMINI_PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SUPABASE_KEY
+    },
+    body: JSON.stringify({ prompt: prompt, temperature: 0.2 })
+  });
 
-function getGeminiEndpoint(model) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const errMsg = errData.error || `HTTP ${response.status}`;
+
+    if (response.status === 503) {
+      throw new Error('Google Gemini 所有備援模型都忙碌中\n\n請 2-3 分鐘後再試');
+    } else if (response.status === 429) {
+      throw new Error('AI 今日額度已用完\n\n請等幾分鐘再試');
+    } else if (response.status === 403) {
+      throw new Error('金鑰無效或權限不足\n\n請到 Supabase 更新 GEMINI_API_KEY');
+    } else {
+      throw new Error('AI 連線失敗：' + errMsg);
+    }
+  }
+
+  const data = await response.json();
+  if (!data.result) throw new Error('AI 沒有回傳內容');
+  console.log(`✅ [${data.model}] AI 解析成功`);
+  return data.result;
 }
 
 // 用 AI 解析口語描述，轉成結構化報價單
-async function parseVoiceWithAI(transcript, modelIndex = 0, retryCount = 0) {
-  const currentModel = GEMINI_MODELS[modelIndex];
-  console.log(`🤖 [${currentModel}] 送去 AI 解析:`, transcript, retryCount > 0 ? `(重試 ${retryCount})` : '');
+async function parseVoiceWithAI(transcript) {
+  console.log('🤖 送去 AI 解析:', transcript);
 
-  // 把品項庫整理成 AI 能看的格式
   const itemCatalog = itemLibrary.map(i => `${i.name}:${i.price}`).join('、');
 
   const prompt = `你是「隆泰帳篷企業社」的智慧報價助理。老闆會用口語描述一張報價單，你要把它解析成 JSON 格式。
@@ -2134,66 +2152,9 @@ ${itemCatalog}
 ${transcript}${getCorrectionHints()}`;
 
   try {
-    const response = await fetch(getGeminiEndpoint(currentModel), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: 'application/json'
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`[${currentModel}] API 錯誤:`, response.status, errText);
-
-      // 503 伺服器忙 — 先快速重試 1 次，失敗就換下一個模型
-      if (response.status === 503 && retryCount < 1) {
-        console.warn(`⚠️ 503 伺服器忙，2 秒後重試`);
-        document.getElementById('processing').innerHTML = `Google 伺服器忙碌中，2 秒後重試...`;
-        await new Promise(r => setTimeout(r, 2000));
-        document.getElementById('processing').innerHTML = 'AI 解析中，比對品項庫<span class="processing-dots"></span>';
-        return parseVoiceWithAI(transcript, modelIndex, retryCount + 1);
-      }
-
-      // 503 / 429 / 500 — 換下一個備援模型
-      if ([429, 500, 503].includes(response.status) && modelIndex < GEMINI_MODELS.length - 1) {
-        const nextModel = GEMINI_MODELS[modelIndex + 1];
-        console.log(`🔄 [${currentModel}] 持續失敗，換用 [${nextModel}]`);
-        document.getElementById('processing').innerHTML = `切換到 ${nextModel} 模型重試...`;
-        await new Promise(r => setTimeout(r, 500));
-        document.getElementById('processing').innerHTML = 'AI 解析中，比對品項庫<span class="processing-dots"></span>';
-        return parseVoiceWithAI(transcript, modelIndex + 1, 0);
-      }
-
-      // 針對常見錯誤給友善訊息
-      if (response.status === 503) {
-        throw new Error('Google Gemini 所有備援模型都忙碌中\n\n這不是你的設定問題，是 Google 那邊過載。\n請 2-3 分鐘後再試');
-      } else if (response.status === 429) {
-        throw new Error('AI 今日額度已用完\n\n解決方法：\n1. 等幾分鐘再試\n2. 或到 https://aistudio.google.com/apikey\n   點「Create API key」建一把新的');
-      } else if (response.status === 400) {
-        throw new Error('金鑰格式錯誤或請求有問題');
-      } else if (response.status === 403) {
-        throw new Error('金鑰無效或權限不足');
-      } else {
-        throw new Error(`AI 連線失敗 (${response.status})\n\n${errText.slice(0, 200)}`);
-      }
-    }
-
-    const data = await response.json();
-    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!aiText) throw new Error('AI 沒有回傳內容');
-
-    console.log(`✅ [${currentModel}] AI 解析成功:`, aiText);
-
+    const aiText = await callGeminiProxy(prompt);
     const parsed = JSON.parse(aiText);
 
-    // 驗證並補齊價格（確保價格真的來自品項庫）
     if (parsed.items && Array.isArray(parsed.items)) {
       parsed.items.forEach(item => {
         const found = itemLibrary.find(x => x.name === item.name);
@@ -2848,9 +2809,8 @@ function voiceAppend() {
 }
 
 // AI 合併追加內容到現有報價單
-async function parseAppendWithAI(existingData, appendText, modelIndex = 0, retryCount = 0) {
-  const currentModel = GEMINI_MODELS[modelIndex];
-  console.log(`🤖 [${currentModel}] 合併追加:`, appendText);
+async function parseAppendWithAI(existingData, appendText) {
+  console.log('🤖 合併追加:', appendText);
 
   const itemCatalog = itemLibrary.map(i => `${i.name}:${i.price}`).join('、');
 
@@ -2896,30 +2856,9 @@ ${appendText}
 }${getCorrectionHints()}`;
 
   try {
-    const response = await fetch(getGeminiEndpoint(currentModel), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
-      })
-    });
-
-    if (!response.ok) {
-      if ([429, 500, 503].includes(response.status) && modelIndex < GEMINI_MODELS.length - 1) {
-        return parseAppendWithAI(existingData, appendText, modelIndex + 1, 0);
-      }
-      throw new Error(`AI 回應 ${response.status}`);
-    }
-
-    const data = await response.json();
-    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!aiText) throw new Error('AI 沒有回傳內容');
-
-    console.log(`✅ [${currentModel}] 合併成功:`, aiText);
+    const aiText = await callGeminiProxy(prompt);
     const parsed = JSON.parse(aiText);
 
-    // 確保價格正確
     if (parsed.items && Array.isArray(parsed.items)) {
       parsed.items.forEach(item => {
         const found = itemLibrary.find(x => x.name === item.name);
@@ -2929,9 +2868,6 @@ ${appendText}
 
     return parsed;
   } catch (err) {
-    if (modelIndex < GEMINI_MODELS.length - 1) {
-      return parseAppendWithAI(existingData, appendText, modelIndex + 1, 0);
-    }
     throw err;
   }
 }
