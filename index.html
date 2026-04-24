@@ -3063,6 +3063,7 @@ function showDetail(id) {
 }
 
 function renderDetail() {
+  try {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) return;
 
@@ -3070,9 +3071,10 @@ function renderDetail() {
   const cashActive = q.paymentMethod === '現金' ? 'active' : '';
   const transferActive = q.paymentMethod === '轉帳' ? 'active' : '';
 
+  if (!q.items) q.items = [];
   let subtotal = 0;
-  q.items.forEach(i => subtotal += i.qty * i.price);
-  const depositAmt = Math.round(q.amount * 0.3);
+  q.items.forEach(i => subtotal += (i.qty || 0) * (i.price || 0));
+  const depositAmt = Math.round((q.amount || 0) * 0.3);
   const balanceAmt = q.amount - depositAmt;
 
   let itemsHTML = '';
@@ -3326,6 +3328,10 @@ function renderDetail() {
     pdfBtn.textContent = '📄 傳送 PDF';
     pdfBtn.addEventListener('click', function() { shareAsPDF(); });
     shareBtns.appendChild(pdfBtn);
+  }
+  } catch (renderErr) {
+    console.error('renderDetail 錯誤:', renderErr);
+    alert('頁面載入錯誤：' + renderErr.message);
   }
 }
 
