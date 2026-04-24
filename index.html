@@ -3282,13 +3282,14 @@ function renderDetail() {
           <span class="line-logo">L</span>
           Send to LINE · 傳送給客戶
         </div>
-        <div class="line-send-row">
-          <button class="btn-line-big" onclick="openShareSheet()">📨 傳送到 LINE</button>
+        <div style="display:flex;gap:8px;">
+          <button style="flex:1;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-card);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;" onclick="shareAsImage()">📸 傳送圖片</button>
+          <button style="flex:1;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-card);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;" onclick="shareAsPDF()">📄 傳送 PDF</button>
         </div>
+        <div class="share-status" id="shareStatusDetail" style="display:none;text-align:center;padding:8px;font-size:12px;color:var(--ink-soft);margin-top:6px;"></div>
       </div>
 
       <div class="quote-actions">
-        <button class="btn btn-secondary" onclick="openShareSheet()">📨 傳 LINE / 匯出 PDF</button>
         ${bottomBtn}
       </div>
 
@@ -4039,27 +4040,25 @@ function getClientName() {
 }
 
 async function shareAsImage() {
-  const status = document.getElementById('shareStatus');
-  status.classList.add('visible');
-  status.textContent = '📸 產生圖片中，請稍候...';
+  // 顯示狀態
+  const status = document.getElementById('shareStatusDetail') || document.getElementById('shareStatus');
+  if (status) { status.style.display = 'block'; status.textContent = '📸 產生圖片中...'; }
 
   try {
-    const el = window._shareTarget;
+    // 直接找報價單元素
+    const el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
     if (!el) {
-      status.textContent = '✗ 找不到報價單，請先開啟一張報價單';
-      console.error('_shareTarget is null');
+      if (status) status.textContent = '✗ 找不到報價單';
+      alert('請先開啟一張報價單');
       return;
     }
 
-    // 檢查 html2canvas 是否載入
     if (typeof html2canvas === 'undefined') {
-      status.textContent = '✗ 圖片工具載入中，請稍後再試';
+      if (status) status.textContent = '✗ 工具載入中，請稍後再試';
       return;
     }
 
-    console.log('📸 開始截圖... 目標元素:', el.className);
-
-    // 隱藏不該出現在圖片上的元素
+    // 隱藏不該出現的元素
     const hideSelectors = ['.internal-bar', '.line-send-section', '.quote-actions', '.edit-mode-hint', '.edit-mode-toggle', '.back-row'];
     const hidden = [];
     hideSelectors.forEach(sel => {
@@ -4068,9 +4067,6 @@ async function shareAsImage() {
         node.style.display = 'none';
       });
     });
-    // 也隱藏 share sheet 自己（避免截到）
-    const sheet = document.getElementById('shareSheet');
-    sheet.style.visibility = 'hidden';
 
     const canvas = await html2canvas(el, {
       scale: 2,
@@ -4081,61 +4077,45 @@ async function shareAsImage() {
 
     // 還原
     hidden.forEach(h => h.node.style.display = h.prev);
-    sheet.style.visibility = '';
 
     canvas.toBlob(async (blob) => {
-      if (!blob) { status.textContent = '✗ 圖片產生失敗'; return; }
+      if (!blob) { if (status) status.textContent = '✗ 圖片產生失敗'; return; }
 
       const client = getClientName();
       const filename = `報價單-${client}-${new Date().toISOString().slice(0,10)}.png`;
 
-      // iPhone Safari 支援 Web Share API
       if (navigator.share && navigator.canShare) {
         const file = new File([blob], filename, { type: 'image/png' });
         if (navigator.canShare({ files: [file] })) {
           try {
-            await navigator.share({
-              files: [file],
-              title: '隆泰帳篷報價單',
-              text: `隆泰帳篷報價單 · ${client}`
-            });
-            status.textContent = '✓ 已分享！';
-            setTimeout(() => closeShareSheet(), 1500);
+            await navigator.share({ files: [file], title: '隆泰帳篷報價單' });
+            if (status) status.textContent = '✓ 已分享！';
             return;
           } catch (err) {
-            if (err.name === 'AbortError') {
-              status.textContent = '已取消';
-              return;
-            }
+            if (err.name === 'AbortError') { if (status) status.textContent = '已取消'; return; }
           }
         }
       }
 
-      // 桌面或不支援 → 直接下載
       downloadBlob(blob, filename);
-      status.textContent = '✓ 圖片已下載到你的電腦！';
+      if (status) status.textContent = '✓ 圖片已下載！';
     }, 'image/png');
   } catch (err) {
-    status.textContent = '✗ 產生失敗：' + err.message;
+    if (status) status.textContent = '✗ 失敗：' + err.message;
     console.error('shareAsImage error:', err);
   }
 }
 
 async function shareAsPDF() {
-  const status = document.getElementById('shareStatus');
-  status.classList.add('visible');
-  status.textContent = '📄 產生 PDF 中，請稍候...';
+  const status = document.getElementById('shareStatusDetail') || document.getElementById('shareStatus');
+  if (status) { status.style.display = 'block'; status.textContent = '📄 產生 PDF 中...'; }
 
   try {
-    const el = window._shareTarget;
-    if (!el) { status.textContent = '✗ 找不到報價單'; return; }
+    const el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
+    if (!el) { if (status) status.textContent = '✗ 找不到報價單'; return; }
 
     if (typeof html2canvas === 'undefined') {
-      status.textContent = '✗ 圖片工具載入中，請稍後再試';
-      return;
-    }
-    if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
-      status.textContent = '✗ PDF 工具載入中，請稍後再試';
+      if (status) status.textContent = '✗ 工具載入中，請稍後再試';
       return;
     }
 
@@ -4148,8 +4128,6 @@ async function shareAsPDF() {
         node.style.display = 'none';
       });
     });
-    const sheet = document.getElementById('shareSheet');
-    sheet.style.visibility = 'hidden';
 
     const canvas = await html2canvas(el, {
       scale: 2,
@@ -4158,7 +4136,6 @@ async function shareAsPDF() {
     });
 
     hidden.forEach(h => h.node.style.display = h.prev);
-    sheet.style.visibility = '';
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -4193,7 +4170,6 @@ async function shareAsPDF() {
             text: `隆泰帳篷報價單 · ${client}`
           });
           status.textContent = '✓ 已分享！';
-          setTimeout(() => closeShareSheet(), 1500);
           return;
         } catch (err) {
           if (err.name === 'AbortError') {
