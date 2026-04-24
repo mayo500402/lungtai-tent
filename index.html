@@ -1737,31 +1737,35 @@ body {
 </head>
 <body>
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:red;padding:8px;text-align:center;display:flex;gap:6px;justify-content:center;">
+  <button onclick="testGoDetail()" style="padding:8px 12px;font-size:14px;font-weight:bold;">🔴 進第1張單</button>
   <button onclick="testShare()" style="padding:8px 12px;font-size:14px;font-weight:bold;">🔴 測試傳圖</button>
-  <button onclick="testDetailBtns()" style="padding:8px 12px;font-size:14px;font-weight:bold;">🔴 測試按鈕</button>
 </div>
 <div style="height:45px;"></div>
 <script>
+function testGoDetail() {
+  if (!savedQuotes || savedQuotes.length === 0) { alert('沒有訂單'); return; }
+  alert('進入: ' + savedQuotes[0].client + ' (id=' + savedQuotes[0].id + ')');
+  showDetail(savedQuotes[0].id);
+  setTimeout(function() {
+    var c = document.getElementById('shareAndActions');
+    alert('詳細頁載入完成\nshareAndActions: ' + (c ? '存在，按鈕=' + c.querySelectorAll('button').length : '不存在') + '\n.quote-doc: ' + document.querySelectorAll('#detailContent .quote-doc').length);
+  }, 500);
+}
 function testShare() {
-  var el = document.querySelector('#detailContent .quote-doc') || document.querySelector('#quoteDoc.visible');
-  if (!el) { alert('找不到報價單元素。\n\n請先進到一張報價單的詳細頁再按此按鈕。\n\n#detailContent存在: ' + !!document.getElementById('detailContent') + '\n.quote-doc數量: ' + document.querySelectorAll('.quote-doc').length); return; }
-  alert('找到報價單！開始截圖...');
+  var el = document.querySelector('#detailContent .quote-doc');
+  if (!el) { alert('找不到報價單，請先按「進第1張單」'); return; }
+  alert('找到報價單，開始截圖...');
   html2canvas(el, {scale:1, backgroundColor:'#fffef9'}).then(function(canvas) {
     canvas.toBlob(function(blob) {
       if (!blob) { alert('截圖失敗'); return; }
       var file = new File([blob], 'test.png', {type:'image/png'});
       if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-        navigator.share({files:[file], title:'測試'}).catch(function(){});
+        navigator.share({files:[file], title:'測試'}).catch(function(e){ alert('分享取消或錯誤:'+e.message); });
       } else {
-        alert('截圖成功！大小=' + blob.size + ' bytes\n但此裝置不支援 Web Share');
+        alert('截圖成功！大小=' + blob.size + ' bytes');
       }
     });
-  }).catch(function(err) { alert('html2canvas 錯誤: ' + err.message); });
-}
-function testDetailBtns() {
-  var container = document.getElementById('shareAndActions');
-  var btns = container ? container.querySelectorAll('button') : [];
-  alert('shareAndActions 元素: ' + (container ? '存在' : '不存在') + '\n按鈕數量: ' + btns.length + '\n\ndetailContent innerHTML 長度: ' + (document.getElementById('detailContent') ? document.getElementById('detailContent').innerHTML.length : 0));
+  }).catch(function(err) { alert('html2canvas錯誤: ' + err.message); });
 }
 </script>
 
