@@ -3048,10 +3048,21 @@ let currentDetailId = null;
 let detailEditMode = false;
 
 function showDetail(id) {
-  alert('showDetail 被呼叫，id=' + id);
+  alert('showDetail: id=' + id + '\nsavedQuotes 數量=' + savedQuotes.length + '\n前3個id=' + savedQuotes.slice(0,3).map(x=>x.id).join(', '));
   const q = savedQuotes.find(x => x.id === id);
-  if (!q) return;
-  currentDetailId = id;
+  if (!q) {
+    // 嘗試用 cloud_id 找
+    const q2 = savedQuotes.find(x => x.cloud_id === parseInt(id.replace('cloud-', '')));
+    if (q2) {
+      alert('用 cloud_id 找到了: ' + q2.client);
+      currentDetailId = q2.id;
+    } else {
+      alert('找不到訂單！id=' + id);
+      return;
+    }
+  } else {
+    currentDetailId = id;
+  }
   detailEditMode = false;
 
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
