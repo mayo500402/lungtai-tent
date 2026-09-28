@@ -2885,7 +2885,7 @@ document.getElementById('payTransferBtn').addEventListener('click', () => {
   document.getElementById('payCashBtn').classList.remove('active');
 });
 
-function saveVoiceQuote() {
+async function saveVoiceQuote() {
   if (!currentQuoteData) { alert('請先產生報價單'); return; }
   const today = new Date();
   const dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
@@ -2917,6 +2917,57 @@ function saveVoiceQuote() {
     subcontractorCost: subCost,
     subcontractType: currentQuoteData.subcontractType || 'margin'
   };
+
+  // 存到雲端
+  try {
+    showSyncing('儲存中');
+    const { data: inserted, error: insertErr } = await db.from('quotes').insert({
+      quote_no: no,
+      client_name: newQuote.client,
+      client_tax: newQuote.tax,
+      client_contact: newQuote.contact,
+      client_phone: newQuote.phone,
+      setup_date: newQuote.setupDate === '—' ? null : newQuote.setupDate,
+      event_date: newQuote.eventDate === '—' ? null : newQuote.eventDate,
+      setup_address: newQuote.address,
+      total_amount: amount,
+      status: 'pending',
+      payment_method: currentPaymentMethod,
+      remark: newQuote.remark,
+      is_subcontract: isSub,
+      subcontractor_name: newQuote.subcontractorName,
+      subcontractor_cost: subCost,
+      subcontract_type: newQuote.subcontractType
+    }).select().single();
+
+    if (insertErr) {
+      console.error('存檔到雲端失敗:', insertErr);
+      alert('⚠ 報價單已建立但雲端儲存失敗\n\n' + insertErr.message + '\n\n請稍後再試');
+    } else {
+      // 存品項
+      const cloud_id = inserted.id;
+      newQuote.cloud_id = cloud_id;
+      newQuote.id = 'cloud-' + cloud_id;
+
+      const itemRows = newQuote.items.map((item, idx) => ({
+        quote_id: cloud_id,
+        item_name: item.name,
+        quantity: item.qty,
+        unit_price: item.price,
+        sort_order: idx
+      }));
+
+      if (itemRows.length > 0) {
+        await db.from('quote_items').insert(itemRows);
+      }
+
+      showSynced('已儲存');
+    }
+  } catch (cloudErr) {
+    console.error('雲端儲存錯誤:', cloudErr);
+    alert('⚠ 雲端儲存失敗：' + cloudErr.message);
+  }
+
   savedQuotes.unshift(newQuote);
   renderFilterTabs();
   renderQuotesList();
@@ -2932,9 +2983,8 @@ function saveVoiceQuote() {
   alert(`✓ 報價單已存檔！\n\n${newQuote.client} · NT$ ${amount.toLocaleString()}${subInfo}\n\n狀態：待回覆`);
 }
 
-function editVoiceQuote() {
+async function editVoiceQuote() {
   if (!currentQuoteData) { alert('請先產生報價單'); return; }
-  // Save this quote into savedQuotes so it can be edited
   const today = new Date();
   const dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
   const no = `Q${dateStr}-${String(Math.floor(Math.random()*900)+100)}`;
@@ -2957,11 +3007,48 @@ function editVoiceQuote() {
     paymentMethod: currentPaymentMethod,
     remark: currentQuoteData.remark || ''
   };
+
+  // 存到雲端
+  try {
+    const { data: inserted, error: insertErr } = await db.from('quotes').insert({
+      quote_no: no,
+      client_name: newQuote.client,
+      client_tax: newQuote.tax,
+      client_contact: newQuote.contact,
+      client_phone: newQuote.phone,
+      setup_date: newQuote.setupDate === '—' ? null : newQuote.setupDate,
+      event_date: newQuote.eventDate === '—' ? null : newQuote.eventDate,
+      setup_address: newQuote.address,
+      total_amount: amount,
+      status: 'pending',
+      payment_method: currentPaymentMethod,
+      remark: newQuote.remark
+    }).select().single();
+
+    if (!insertErr && inserted) {
+      const cloud_id = inserted.id;
+      newQuote.cloud_id = cloud_id;
+      newQuote.id = 'cloud-' + cloud_id;
+
+      const itemRows = newQuote.items.map((item, idx) => ({
+        quote_id: cloud_id,
+        item_name: item.name,
+        quantity: item.qty,
+        unit_price: item.price,
+        sort_order: idx
+      }));
+      if (itemRows.length > 0) {
+        await db.from('quote_items').insert(itemRows);
+      }
+    }
+  } catch (e) {
+    console.error('editVoiceQuote 雲端儲存失敗:', e);
+  }
+
   savedQuotes.unshift(newQuote);
   renderFilterTabs();
   renderQuotesList();
-  showDetail(id);
-  // Auto-enter edit mode
+  showDetail(newQuote.id);
   setTimeout(() => {
     detailEditMode = true;
     renderDetail();
