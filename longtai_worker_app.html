@@ -1203,6 +1203,7 @@ async function loadOrdersFromCloud() {
         remark: q.remark || '',
         setupDate: q.setup_date || '—',
         eventDate: q.event_date_start || '—',
+        eventName: q.event_name || '',
         teardownDate: q.teardown_date || (d.teardown_completed_at ? d.teardown_completed_at.slice(0,10) : null),
         status: workerStatus,
         worker_notes: d.worker_notes || '',
@@ -1376,7 +1377,8 @@ function renderSetup() {
     const addrShort = (o.address && o.address !== '—' && o.address !== '') 
       ? o.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20)
       : '';
-    const addrLabel = addrShort ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${addrShort}</div>` : '';
+    const locLine = [o.eventName || '', addrShort].filter(Boolean).join(' · ');
+    const addrLabel = locLine ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${locLine}</div>` : '';
 
     const card = document.createElement('div');
     card.className = `order-card ${urgentClass}`;
@@ -1446,7 +1448,8 @@ function renderTeardown() {
     card.className = `order-card ongoing ${urgent ? 'urgent' : ''}`;
     const tearAddrShort = (o.address && o.address !== '—' && o.address !== '') 
       ? o.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20) : '';
-    const tearAddrLabel = tearAddrShort ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${tearAddrShort}</div>` : '';
+    const tearLocLine = [o.eventName || '', tearAddrShort].filter(Boolean).join(' · ');
+    const tearAddrLabel = tearLocLine ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${tearLocLine}</div>` : '';
     card.innerHTML = `
       <div class="order-card-top">
         <div>
@@ -1510,7 +1513,7 @@ function renderHistory() {
       <div class="history-top">
         <div>
           <div class="history-client">${o.client}</div>
-          ${(o.address && o.address !== '—' && o.address !== '') ? '<div style="font-size:12px;color:#4a6741;font-weight:500;margin-top:1px;">📍' + o.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20) + '</div>' : ''}
+          ${(() => { const hn = [o.eventName || '', (o.address && o.address !== '—' && o.address !== '') ? o.address.replace(/https?:\/\/\S+/g, '').trim().slice(0,20) : ''].filter(Boolean).join(' · '); return hn ? '<div style="font-size:12px;color:#4a6741;font-weight:500;margin-top:1px;">📍' + hn + '</div>' : ''; })()}
         </div>
         <div class="history-date">${(o.eventDate && o.eventDate.length > 5 ? o.eventDate.substring(5) : o.eventDate || '—')}</div>
       </div>

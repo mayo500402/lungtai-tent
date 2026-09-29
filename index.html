@@ -1889,6 +1889,13 @@ body {
             </div>
           </div>
 
+          <div class="event-dates" id="eventNameRow" style="display:none;">
+            <div class="event-date-item" style="flex:1;">
+              <div class="event-date-label">Event Name · 活動名稱</div>
+              <div class="event-date-value" id="eventNameValue">—</div>
+            </div>
+          </div>
+
           <div class="event-dates" id="addressRow" style="display:none;">
             <div class="event-date-item" style="flex:1;">
               <div class="event-date-label">Location · 搭設地點</div>
@@ -2123,11 +2130,12 @@ ${itemCatalog}
 2. 日期：今天是 ${new Date().toISOString().slice(0,10)}，如果客戶說「5/10」這種，補上年份變 2026/05/10
 3. 進場日期（setupDate）：客戶要你搬去搭的日期
 4. 活動日期（eventDate）：活動當天或當天起迄
-5. 地點（address）：搭設地點或地址。如果老闆說了地名、地址、或 Google Maps 連結，都填在這裡。沒提到就填空字串
-6. 品項（items）：從口語抓出品項名稱和數量。品項名稱必須**完全符合**品項庫中的名字（找最接近的），qty 是數量，price 從品項庫對應查出
-7. 訂金比例（deposit）：「三成」=0.3、「五成」=0.5、「一半」=0.5，預設 0
-8. 備註（remark）：如果客戶有特別要求放在這裡，沒有就空字串
-9. 發包（subcontract）：如果老闆說「發包給XXX」「外包給XXX」「轉給XXX做」，代表這是發包訂單
+5. 活動名稱（eventName）：如果有提到活動的名稱（例如「媽祖遶境」「校慶園遊會」「畢業典禮」「里民活動」「尾牙」「春酒」「婚宴」），填在這裡。沒有就填空字串
+6. 地點（address）：搭設地點或地址。如果老闆說了地名、地址、或 Google Maps 連結，都填在這裡。沒提到就填空字串
+7. 品項（items）：從口語抓出品項名稱和數量。品項名稱必須**完全符合**品項庫中的名字（找最接近的），qty 是數量，price 從品項庫對應查出
+8. 訂金比例（deposit）：「三成」=0.3、「五成」=0.5、「一半」=0.5，預設 0
+9. 備註（remark）：如果客戶有特別要求放在這裡，沒有就空字串
+10. 發包（subcontract）：如果老闆說「發包給XXX」「外包給XXX」「轉給XXX做」，代表這是發包訂單
    - isSubcontract: true
    - subcontractorName: 同業名稱
    - subcontractorCost: 如果有提到付給同業多少錢就填，沒提到填 0
@@ -2139,6 +2147,7 @@ ${itemCatalog}
   "client": { "name": "客戶名", "tax": "統編或—", "contact": "聯絡人或—", "phone": "電話或—" },
   "setupDate": "YYYY/MM/DD",
   "eventDate": "YYYY/MM/DD",
+  "eventName": "活動名稱",
   "address": "搭設地點",
   "items": [{ "name": "品項名", "qty": 數字, "price": 數字 }],
   "deposit": 0.3,
@@ -2473,6 +2482,7 @@ async function loadQuotesFromCloud() {
             phone: q.client_phone || '—',
             setupDate: q.setup_date || '—',
             eventDate: q.event_date_start || '—',
+            eventName: q.event_name || '',
             address: q.setup_address || '',
             items: items,
             amount: amount || q.total_amount || 0,
@@ -2905,6 +2915,7 @@ async function saveVoiceQuote() {
     phone: currentQuoteData.client.phone || '—',
     setupDate: currentQuoteData.setupDate,
     eventDate: currentQuoteData.eventDate,
+    eventName: currentQuoteData.eventName || '',
     address: currentQuoteData.address || '',
     items: [...currentQuoteData.items],
     amount: amount,
@@ -2929,6 +2940,7 @@ async function saveVoiceQuote() {
       client_phone: newQuote.phone,
       setup_date: newQuote.setupDate === '—' ? null : newQuote.setupDate,
       event_date: newQuote.eventDate === '—' ? null : newQuote.eventDate,
+      event_name: newQuote.eventName,
       setup_address: newQuote.address,
       total_amount: amount,
       status: 'pending',
@@ -2999,6 +3011,7 @@ async function editVoiceQuote() {
     phone: currentQuoteData.client.phone || '—',
     setupDate: currentQuoteData.setupDate,
     eventDate: currentQuoteData.eventDate,
+    eventName: currentQuoteData.eventName || '',
     address: currentQuoteData.address || '',
     items: [...currentQuoteData.items],
     amount: amount,
@@ -3018,6 +3031,7 @@ async function editVoiceQuote() {
       client_phone: newQuote.phone,
       setup_date: newQuote.setupDate === '—' ? null : newQuote.setupDate,
       event_date: newQuote.eventDate === '—' ? null : newQuote.eventDate,
+      event_name: newQuote.eventName,
       setup_address: newQuote.address,
       total_amount: amount,
       status: 'pending',
@@ -3266,6 +3280,13 @@ function renderDetail() {
 
         <div class="event-dates">
           <div class="event-date-item" style="flex:1;">
+            <div class="event-date-label">Event Name · 活動名稱</div>
+            <div class="event-date-value">${ed(q.eventName || '', 'eventName', '例如：媽祖遶境、校慶園遊會')}</div>
+          </div>
+        </div>
+
+        <div class="event-dates">
+          <div class="event-date-item" style="flex:1;">
             <div class="event-date-label">Location · 搭設地點</div>
             <div class="event-date-value" style="font-size:13px;">${detailEditMode
               ? ed(q.address, 'address', '輸入地點或貼 Google Maps 連結')
@@ -3322,6 +3343,7 @@ function renderDetail() {
     client: { name: q.client, tax: q.tax, contact: q.contact, phone: q.phone },
     setupDate: q.setupDate,
     eventDate: q.eventDate,
+    eventName: q.eventName || '',
     items: q.items,
     deposit: 0.3,
     remark: q.remark
@@ -3409,6 +3431,7 @@ function saveField(field, value) {
       phone: 'client_phone',
       setupDate: 'setup_date',
       address: 'setup_address',
+      eventName: 'event_name',
       eventDate: 'event_date_start',
       remark: 'remark',
       paymentMethod: 'payment_method'
@@ -3985,6 +4008,16 @@ function renderQuote(d) {
   document.getElementById('setupDate').textContent = d.setupDate;
   document.getElementById('eventDate').textContent = d.eventDate;
 
+  // 活動名稱
+  const eventNameRow = document.getElementById('eventNameRow');
+  const eventNameValue = document.getElementById('eventNameValue');
+  if (d.eventName && d.eventName !== '') {
+    eventNameRow.style.display = '';
+    eventNameValue.textContent = d.eventName;
+  } else {
+    eventNameRow.style.display = 'none';
+  }
+
   // 地點
   const addressRow = document.getElementById('addressRow');
   const addressValue = document.getElementById('addressValue');
@@ -4417,7 +4450,9 @@ function renderQuotesList() {
     const addrShort = (q.address && q.address !== '—' && q.address !== '') 
       ? q.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20)
       : '';
-    const addrTag = addrShort ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${addrShort}</div>` : '';
+    const evtName = q.eventName || '';
+    const locationLine = [evtName, addrShort].filter(Boolean).join(' · ');
+    const addrTag = locationLine ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${locationLine}</div>` : '';
 
     item.innerHTML = `
       <div class="quote-item-head">
