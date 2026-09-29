@@ -1373,11 +1373,19 @@ function renderSetup() {
     const eventDiff = formatDateDiff(o.eventDate);
     const urgentClass = (setupDiff.text === '今天' || setupDiff.text === '明天') ? 'urgent' : '';
 
+    const addrShort = (o.address && o.address !== '—' && o.address !== '') 
+      ? o.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20)
+      : '';
+    const addrLabel = addrShort ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${addrShort}</div>` : '';
+
     const card = document.createElement('div');
     card.className = `order-card ${urgentClass}`;
     card.innerHTML = `
       <div class="order-card-top">
-        <div class="order-card-client">${o.client}</div>
+        <div>
+          <div class="order-card-client">${o.client}</div>
+          ${addrLabel}
+        </div>
         <div class="order-card-status ${statusMap[o.status].cls}">${statusMap[o.status].label}</div>
       </div>
       <div class="order-card-info">
@@ -1436,9 +1444,15 @@ function renderTeardown() {
 
     const card = document.createElement('div');
     card.className = `order-card ongoing ${urgent ? 'urgent' : ''}`;
+    const tearAddrShort = (o.address && o.address !== '—' && o.address !== '') 
+      ? o.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20) : '';
+    const tearAddrLabel = tearAddrShort ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${tearAddrShort}</div>` : '';
     card.innerHTML = `
       <div class="order-card-top">
-        <div class="order-card-client">${o.client}</div>
+        <div>
+          <div class="order-card-client">${o.client}</div>
+          ${tearAddrLabel}
+        </div>
         <div class="order-card-status ${statusMap[o.status].cls}">${statusMap[o.status].label}</div>
       </div>
       <div class="order-card-info">
@@ -1494,7 +1508,10 @@ function renderHistory() {
     item.className = 'history-item';
     item.innerHTML = `
       <div class="history-top">
-        <div class="history-client">${o.client}</div>
+        <div>
+          <div class="history-client">${o.client}</div>
+          ${(o.address && o.address !== '—' && o.address !== '') ? '<div style="font-size:12px;color:#4a6741;font-weight:500;margin-top:1px;">📍' + o.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20) + '</div>' : ''}
+        </div>
         <div class="history-date">${(o.eventDate && o.eventDate.length > 5 ? o.eventDate.substring(5) : o.eventDate || '—')}</div>
       </div>
       <div class="history-meta">

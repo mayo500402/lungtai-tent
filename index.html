@@ -3098,6 +3098,10 @@ function renderDetail() {
   const q = savedQuotes.find(x => x.id === currentDetailId);
   if (!q) return;
 
+  const detailAddrShort = (q.address && q.address !== '—' && q.address !== '') 
+    ? q.address.replace(/https?:\/\/\S+/g, '').trim() 
+    : '';
+
   const s = statusMap[q.status] || { label: q.status || '未知', cls: '' };
   const cashActive = q.paymentMethod === '現金' ? 'active' : '';
   const transferActive = q.paymentMethod === '轉帳' ? 'active' : '';
@@ -3195,7 +3199,7 @@ function renderDetail() {
   document.getElementById('detailContent').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px;">
       <div style="flex:1;min-width:0;">
-        <h1 class="page-title">${q.client}</h1>
+        <h1 class="page-title">${q.client}${detailAddrShort ? ' · ' + detailAddrShort : ''}</h1>
         <p class="page-sub" style="margin-bottom:0;">${q.no} · 建立於 ${q.date}</p>
       </div>
       <button class="edit-mode-toggle ${detailEditMode ? 'active' : ''}" onclick="toggleEditMode()">${detailEditMode ? '儲存' : '編輯'}</button>
@@ -4409,9 +4413,18 @@ function renderQuotesList() {
       ? `<div class="quote-item-amount">NT$ ${q.amount.toLocaleString()}<div style="font-size:10px;color:var(--ink-faint);">利潤 ${(q.amount - (q.subcontractorCost || 0)).toLocaleString()}</div></div>`
       : `<div class="quote-item-amount">NT$ ${q.amount.toLocaleString()}</div>`;
 
+    // 地點簡稱（去掉 URL，只留地名）
+    const addrShort = (q.address && q.address !== '—' && q.address !== '') 
+      ? q.address.replace(/https?:\/\/\S+/g, '').trim().slice(0, 20)
+      : '';
+    const addrTag = addrShort ? `<div style="font-size:13px;color:#4a6741;font-weight:500;margin-top:2px;">📍${addrShort}</div>` : '';
+
     item.innerHTML = `
       <div class="quote-item-head">
-        <div class="quote-item-client">${highlightText(q.client, quoteSearchTerm)}${subTag}</div>
+        <div>
+          <div class="quote-item-client">${highlightText(q.client, quoteSearchTerm)}${subTag}</div>
+          ${addrTag}
+        </div>
         ${displayAmount}
       </div>
       <div class="quote-item-meta">
